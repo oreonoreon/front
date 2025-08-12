@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-import Scheduler from './components/Scheduler.vue'
+import Scheduler from './components/Scheduler1.vue'
 </script>

@@ -1,20 +1,38 @@
-<!--<template>-->
-<!--  <DayPilotScheduler :config="config" ref="schedulerRef" />-->
-<!--</template>-->
 <template>
-  <div class="scheduler-wrapper">
+  <div class="scheduler-container">
     <DayPilotScheduler :config="config" ref="schedulerRef" />
+    <div v-if="selectedGuest" class="guest-panel">
+      <h3>Booking info</h3>
+      <h3>{{ selectedGuest.text }}</h3>
+      <p>📞 {{ selectedGuest.tag.phone }}</p>
+      <p>🏠 {{ selectedGuest.tag.roomNumber }}</p>
+      <p>⏱ {{ selectedGuest.tag.check_in }} → {{ selectedGuest.tag.check_out }}</p>
+      <p>💰 {{ selectedGuest.tag.price }} ฿</p>
+      <p>🧼 Уборка: {{ selectedGuest.tag.cleaning_price }} ฿</p>
+      <p>💡 Вода/свет: {{ selectedGuest.tag.electricity_and_water_payment }}</p>
+      <p>👨‍👩‍👧 Взрослых: {{ selectedGuest.tag.adult }}, Детей: {{ selectedGuest.tag.children }}</p>
+      <p>🛏 Дней: {{ selectedGuest.tag.days }}</p>
+      <button @click="selectedGuest = null">Закрыть</button>
+    </div>
   </div>
 </template>
 
 <style>
-.scheduler-wrapper {
+.scheduler-container {
   position: absolute;
-  top: 0px;
-  left: 0px;
-  right: 0px;
-  bottom: 0px;
-  border-top: 1px solid #ccc;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* display: flex; */
+}
+
+.guest-panel {
+  width: 300px;
+  padding: 16px;
+  background: #fff;
+  border-left: 1px solid #ccc;
+  overflow-y: auto;
 }
 </style>
 
@@ -34,7 +52,7 @@ const days = Math.round((new Date(end.value) - new Date(start.value)) / msPerDay
 const config = reactive({
   //theme: "theme",
   eventBorderRadius: "15px",
-  heightSpec: "Parent100Pct",
+  //heightSpec: "Parent100Pct",
   timeHeaders: [{"groupBy":"Year"},{"groupBy":"Month"},{"groupBy":"Day","format":"d"}],
   scale: "Day",
   days: days,
@@ -90,6 +108,7 @@ const config = reactive({
   }),
   treeEnabled: true,
   rowMinHeight: 50,
+  //click
   EventClickHandling: "CallBack",
   onEventClick: (args) => {
     args.control.message("Event clicked: " + args.e.text());
