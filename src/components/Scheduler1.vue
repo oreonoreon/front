@@ -247,7 +247,7 @@ const createBooking = async (args) => {
 
 //загрузка апартаментов
 const loadResources = async () => {
-  const { data } = await axios.get('/api');
+  const { data } = await axios.get('/api/calendar');
   config.resources = data.apartments.map(apt => ({
     name: apt.room_number,
     id: apt.room_number,
