@@ -310,13 +310,14 @@ onMounted(async () => {
 <style scoped>
 .scheduler-container {
   display: flex;
-  height: 100vh;
+  /*height: 100vh;*/
+  height: calc(100vh - 56px);
   overflow: hidden;
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  right: 0px;
-  bottom: 0px;
+  /* position: absolute;
+   top: 0px;
+   left: 0px;
+   right: 0px;
+   bottom: 0px; */
 }
 
 .scheduler-wrapper {
