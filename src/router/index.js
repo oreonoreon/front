@@ -5,7 +5,7 @@ import Home from "../components/Scheduler1.vue"; // ваш главный ком
 // import Today from './components/Today.vue'
 
 const routes = [
-    { path: "/login", component: Login },
+    { path: "/login", component: Login, meta: { hideNavbar: true } },
     { path: "/", component: Home },
     //{ path: '/logout', component: Logout },
    //{ path: '/today', component: Today },

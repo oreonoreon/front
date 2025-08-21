@@ -310,19 +310,18 @@ onMounted(async () => {
 <style scoped>
 .scheduler-container {
   display: flex;
-  /*height: 100vh;*/
   height: calc(100vh - 56px);
+  width: 100vw;
+  min-width: 0;
   overflow: hidden;
-  /* position: absolute;
-   top: 0px;
-   left: 0px;
-   right: 0px;
-   bottom: 0px; */
 }
 
 .scheduler-wrapper {
   flex: 1;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
+  overflow-x: auto; /* scroll появляется здесь! */
 }
 
 .info-panel {

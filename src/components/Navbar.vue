@@ -42,7 +42,12 @@ async function onLogout() {
 .navbar {
   position: sticky;
   top: 0;
-  width: 100%;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  max-width: 100vw;
+  min-width: 0;
+  box-sizing: border-box;
   background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
   display: flex;
   align-items: center;
