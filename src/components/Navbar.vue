@@ -2,14 +2,14 @@
   <nav class="navbar">
     <div class="navbar-logo">CondoManager</div>
     <div class="navbar-links">
-      <router-link to="/today" class="nav-link" active-class="active-link">Сегодня</router-link>
-      <router-link to="/" class="nav-link" active-class="active-link">Scheduler1</router-link>
+      <router-link to="/today" class="nav-link" active-class="active-link">Today</router-link>
+      <router-link to="/" class="nav-link" active-class="active-link">Calendar</router-link>
       <button
           class="logout-btn"
           :disabled="loading"
           @click="onLogout"
       >
-        Выйти
+        Logout
       </button>
     </div>
   </nav>
@@ -17,7 +17,7 @@
 
 <script setup>
 import { ref } from "vue";
-import axios from "axios";
+import api from "../api.js";
 import { useRouter } from "vue-router";
 
 const loading = ref(false);
@@ -28,7 +28,7 @@ async function onLogout() {
   error.value = "";
   loading.value = true;
   try {
-    await axios.post("/api/calendar/logout");
+    await api.post("/calendar/logout");
     router.push("/login");
   } catch (e) {
     error.value = e.response?.data || "Ошибка выхода";

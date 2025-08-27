@@ -26,7 +26,7 @@
 <script setup>
 import { DayPilot, DayPilotScheduler } from 'daypilot-pro-vue';
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import api from "../api.js";
 
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
@@ -127,7 +127,7 @@ config.onEventDelete = async function(args) {
 const deleteBooking = async(id) => {
   try {
     console.log('deleteBooking', id);
-    const {data}= await axios.delete(`/api/calendar/deleteBooking/${id}`)
+    const {data}= await api.delete(`/calendar/deleteBooking/${id}`)
     return data
   }
   catch (error) {
@@ -219,7 +219,7 @@ const createBooking = async (args) => {
   };
 
   try {
-    const { data } = await axios.post('/api/calendar/createBooking', booking);
+    const { data } = await api.post('/calendar/createBooking', booking);
     return data;
   }
   catch (err) {
@@ -247,7 +247,7 @@ const createBooking = async (args) => {
 
 //загрузка апартаментов
 const loadResources = async () => {
-  const { data } = await axios.get('/api/calendar/r');
+  const { data } = await api.get('/calendar/r');
   config.resources = data.apartments.map(apt => ({
     name: apt.room_number,
     id: apt.room_number,
@@ -266,7 +266,7 @@ function addElevenHoursDP(iso) {
 const loadEvents = async () => {
   let events = [];
   for (const res of config.resources) {
-    const { data } = await axios.post('/api/calendar/r', { room_number: res.id });
+    const { data } = await api.post('/calendar/r', { room_number: res.id });
     const bookings = data.bookings || data;
     bookings.forEach(b => {
       const checkIn=addElevenHoursDP(b.check_in);
