@@ -16,7 +16,9 @@
 <!--      <p>🛏 Дней: {{ selectedGuest.tag.days }}</p>-->
       <ul class="list">
         <li class="list-item" v-for="(value,key) in selectedGuest.tag">
-          {{key}} : {{value}}
+          <span class="list-key">{{ key }}</span>
+          <span class="list-sep"> : </span>
+          <span class="list-value">{{ value }}</span>
         </li>
       </ul>
     </div>
@@ -325,6 +327,7 @@ onMounted(async () => {
 }
 
 .info-panel {
+  position: relative;
   width: 300px;
   background: #fff;
   border-left: 1px solid #ccc;
@@ -356,6 +359,25 @@ onMounted(async () => {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+  }
+
+  .list-key {
+    font-weight: 600;
+    color: #333;
+    flex: 0 0 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .list-value {
+    flex: 1;
+    color: #444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .list-sep {
+    white-space: pre; /* чтобы не схлопывались пробелы */
   }
 }
 </style>
