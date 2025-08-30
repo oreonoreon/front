@@ -32,6 +32,7 @@ async function onLogout() {
     router.push("/login");
   } catch (e) {
     error.value = e.response?.data || "Ошибка выхода";
+    router.push("/login");
   } finally {
     loading.value = false;
   }
