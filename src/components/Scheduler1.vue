@@ -117,7 +117,7 @@ const deleteBooking = async(id) => {
 };
 
 
-// Игнорируем выделение облости менее одного дня — воспринимаем как простой клик
+// Игнорируем выделение облости менее половины дня — воспринимаем как простой клик
 function noLessThenHalfDay(args) {
   const msPerDay = 24 * 60 * 60 * 1000/2;
   const lengthMs = args.end.getTime() - args.start.getTime();
@@ -277,7 +277,7 @@ onMounted(async () => {
   await loadResources();
   await loadEvents();
   schedulerRef.value?.control.message("Календарь бронирований загружен!");
-  schedulerRef.value?.control.scrollTo(DayPilot.Date.today().firstDayOfMonth());
+  schedulerRef.value?.control.scrollTo(DayPilot.Date.today().addDays(-1));
 });
 </script>
 
