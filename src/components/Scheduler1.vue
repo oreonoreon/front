@@ -29,6 +29,7 @@ import { ref, reactive, onMounted } from 'vue';
 import api from "../api.js";
 import BookingFormOverlay from './BookingFormOverlay.vue';
 
+
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
 
@@ -40,6 +41,44 @@ const start = new DayPilot.Date("2023-11-01");
 const end = new DayPilot.Date("2026-12-31");
 const msPerDay = 24 * 60 * 60 * 1000;
 const days = Math.round((new Date(end.value) - new Date(start.value)) / msPerDay) + 1;
+
+/* ===================== ВЫДЕЛЕНИЕ КОЛОНОК (ВСЁ ЧЕРЕЗ cssClass) ===================== */
+const selectedColumnDates = new Set();   // строки формата yyyy-MM-dd
+let headerAnchor = null;                 // якорная дата (первый клик для диапазона Shift)
+
+function dateKey(dpDate) {
+  return dpDate.toString("yyyy-MM-dd");
+}
+function selectSingle(date) {
+  selectedColumnDates.clear();
+  selectedColumnDates.add(dateKey(date));
+  headerAnchor = date;
+}
+function toggleDate(date) {
+  const k = dateKey(date);
+  if (selectedColumnDates.has(k)) selectedColumnDates.delete(k);
+  else selectedColumnDates.add(k);
+  if (!headerAnchor) headerAnchor = date;
+}
+function selectRange(toDate) {
+  if (!headerAnchor) {
+    selectSingle(toDate);
+    return;
+  }
+  selectedColumnDates.clear();
+  const startDate = headerAnchor.getTime() <= toDate.getTime() ? headerAnchor : toDate;
+  const endDate   = headerAnchor.getTime() >  toDate.getTime() ? headerAnchor : toDate;
+  let cur = startDate;
+  while (cur.getTime() <= endDate.getTime()) {
+    selectedColumnDates.add(dateKey(cur));
+    cur = cur.addDays(1);
+  }
+}
+function clearColumnSelection() {
+  selectedColumnDates.clear();
+  headerAnchor = null;
+}
+/* ============================================================================= */
 
 const config = reactive({
   heightSpec: "Parent100Pct",
@@ -72,7 +111,59 @@ const config = reactive({
     }
   }),
   eventDeleteHandling: "Update",
+
+//для кликов по заголовку
+  timeHeaderClickHandling: "JavaScript",
 });
+
+//----------функционал выделения облости календаря по кликам на дни-----------------------------------
+
+/* --- Заголовки (дни) --- */
+config.onBeforeTimeHeaderRender= args => {
+  if (args.header.level === 2) { // Day уровень
+    const k = dateKey(args.header.start);
+    if (selectedColumnDates.has(k)) {
+      args.header.cssClass = (args.header.cssClass || "") + " dp-header-selected";
+    }
+    if (headerAnchor && k === dateKey(headerAnchor)) {
+      args.header.cssClass = (args.header.cssClass || "") + " dp-header-anchor";
+      // можно дополнительно подчеркнуть цифру:
+      // args.header.html = `<span style="text-decoration:underline;">${args.header.start.toString("d")}</span>`;
+    }
+  }
+};
+
+    /* --- Ячейки (колонки под выбранными датами) --- */
+    config.onBeforeCellRender= args => {
+  const k = dateKey(args.cell.start);
+  if (selectedColumnDates.has(k)) {
+    args.cell.cssClass = (args.cell.cssClass || "") + " dp-col-selected";
+  }
+};
+
+    /* --- Клики по заголовку --- */
+
+config.onTimeHeaderClick= args => {
+  if (args.header.level !== 2) return;
+  const ev = args.originalEvent || window.event || {};
+  const clickedDate = args.header.start;
+  if (ev.shiftKey) {
+    selectRange(clickedDate);
+  } else if (ev.ctrlKey || ev.metaKey) {
+    toggleDate(clickedDate);
+  } else {
+    const k = dateKey(clickedDate);
+    if (selectedColumnDates.size === 1 && selectedColumnDates.has(k)) {
+      clearColumnSelection();
+    } else {
+      selectSingle(clickedDate);
+    }
+  }
+  schedulerRef.value?.control.update();
+};
+
+
+//--------------------------------------------------------------------------------------------------
 
 // Удаление
 config.onEventDelete = async function(args) {
@@ -315,4 +406,39 @@ onMounted(async () => {
   cursor: pointer;
 }
 
+/* ---------- Выделенные заголовки ---------- */
+/* dp-header-selected вешается на внешний контейнер заголовка дня */
+:deep(.dp-header-selected) {
+  background: linear-gradient(90deg, #4f8cff, #6157ff);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+/* Якорь (первый клик для диапазона) добавляет рамку */
+:deep(.dp-header-anchor) {
+  box-shadow: 0 0 0 2px #ffb347 inset;
+}
+
+/* Если хочешь сделать anchor визуально особенным при одновременном selected:
+:deep(.dp-header-selected.dp-header-anchor) {
+  box-shadow: 0 0 0 2px #ffd58c inset;
+}
+*/
+
+/* ---------- Выделенные колонки (ячейки) ---------- */
+/* dp-col-selected добавляется к элементу ячейки */
+:deep(.dp-col-selected) {
+  background: rgba(79, 140, 255, 0.12) !important;
+  /* Можно усилить:
+  box-shadow: inset 0 0 0 2px rgba(79,140,255,0.25);
+  */
+  transition: background .15s;
+}
+
+/* Если у темы фон задаётся на внутренний _inner, можно продублировать: */
+:deep(.dp-col-selected .scheduler_default_cell_inner),
+:deep(.dp-col-selected .scheduler_default_cell_inner:not(.something)) {
+  background: transparent; /* оставляем прозрачным, внешний уже подсвечен */
+}
 </style>
