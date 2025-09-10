@@ -80,6 +80,41 @@ function clearColumnSelection() {
 }
 /* ============================================================================= */
 
+// Глобальное меню для событий
+let openMenuEventId = null;
+let menuOpen = false;
+
+const eventMenu = new DayPilot.Menu({
+  items: [
+    {
+      text: "Редактировать",
+      onClick: (menuArgs) => {
+        const e = menuArgs.source;
+        schedulerRef.value?.control.message(`Редактировать: ${e.data.text}`);
+        // здесь можешь вызвать показ формы редактирования
+      }
+    },
+    {
+      text: "Удалить",
+      onClick: async (menuArgs) => {
+        const event = menuArgs.source; // DayPilot.Event
+        const res = await deleteBookingWithConfirm(event);
+        if (res === "ok") {
+          schedulerRef.value?.control.events.remove(event); // вручную удаляем
+          schedulerRef.value?.control.message("Удалено");
+        } else if (res === "error") {
+          schedulerRef.value?.control.message("Ошибка удаления");
+        }
+        // canceled -> ничего
+      }
+    }
+  ],
+  onClosed: () => {
+    openMenuEventId = null;
+    menuOpen = false;
+  }
+});
+
 const config = reactive({
   heightSpec: "Parent100Pct",
   timeHeaders: [{ groupBy: "Year" }, { groupBy: "Month" }, { groupBy: "Day", format: "d" }],
@@ -93,13 +128,14 @@ const config = reactive({
   snapToGrid: false,
   eventMoveHandling: "Disabled",
   eventClickHandling: "CallBack",
-  onEventClick: args => {
-    const clicked = args.e.data;
-    if (selectedGuest.value?.id === clicked.id) {
-      selectedGuest.value = null;
-    } else {
-      selectedGuest.value = clicked;
+  onEventClick: (args) => {
+    const oe = args.originalEvent;
+    if (oe?.target && oe.target.closest && oe.target.closest('.dp-event-chevron')) {
+      return; // клик по шеврону — игнорируем
     }
+    const clicked = args.e.data;
+    selectedGuest.value =
+        selectedGuest.value?.id === clicked.id ? null : clicked;
   },
   eventHoverHandling: "Bubble",
   bubble: new DayPilot.Bubble({
@@ -110,7 +146,55 @@ const config = reactive({
           : "Информация отсутствует";
     }
   }),
-  eventDeleteHandling: "Update",
+  //eventDeleteHandling: "Update",
+
+  onBeforeEventRender: (args) => {
+    const areas = args.data.areas || [];
+
+    // SVG шеврон (можно заменить на иконку/текст)
+    const chevronSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 24 24"
+         width="14" height="14" fill="none"
+         stroke="currentColor" stroke-width="4"
+         stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 8 12 16 18 8"/>
+    </svg>
+  `;
+
+    areas.push({
+      right: 4,
+      top: 4,
+      width: 18,
+      height: 18,
+      visibility: "Visible",
+      cssClass: "dp-event-chevron",
+      html: chevronSvg,
+      toolTip: "Действия",
+      action: "ContextMenu",
+      contextMenu: eventMenu,
+      onClick: (areaArgs) => {
+        const event = areaArgs.source;
+        // toggle: если уже открыто для этого события — просто закрываем и отменяем дефолт
+        if (menuOpen && openMenuEventId === event.data.id) {
+          eventMenu.hide();
+          // Отмена показа (чтобы DayPilot не открыл снова)
+          if (areaArgs.preventDefault) {
+            areaArgs.preventDefault();
+          }
+          openMenuEventId = null;
+          menuOpen = false;
+          return;
+        }
+        // Иначе — запомнить, что сейчас откроется
+        openMenuEventId = event.data.id;
+        menuOpen = true;
+      }
+    });
+
+    args.data.areas = areas;
+  },
+
 
 //для кликов по заголовку
   timeHeaderClickHandling: "JavaScript",
@@ -166,30 +250,38 @@ config.onTimeHeaderClick= args => {
 //--------------------------------------------------------------------------------------------------
 
 // Удаление
-config.onEventDelete = async function(args) {
-  args.async = true;
-  const modal= await DayPilot.Modal.confirm(
+/* Универсальный workflow удаления события
+   Возвращает: "ok" | "canceled" | "error"
+*/
+async function deleteBookingWithConfirm(event) {
+  const modal = await DayPilot.Modal.confirm(
       `
-     <p>Are you sure you want to delete this booking?</p>
-     <p>id: ${ args.e.data.id }</p>
-     <p>Name: ${args.e.data.text}</p>
-     `,
+      <p>Are you sure you want to delete this booking?</p>
+      <p>id: ${event.data.id}</p>
+      <p>Name: ${event.data.text}</p>
+    `,
       { html: true }
   );
 
-  if (modal.canceled) {
-    args.preventDefault();
-    args.loaded();
-    return;
-  }
+  if (modal.canceled) return "canceled";
 
   try {
-    await deleteBooking(args.e.data.id);
-  } catch {
-    args.preventDefault();
+    await deleteBooking(event.data.id);
+    return "ok";
+  } catch (e) {
+    return "error";
   }
-  args.loaded();
-};
+}
+
+// config.onEventDelete = async function(args) {
+//   args.async = true;
+//   const res = await deleteBookingWithConfirm(args.e);
+//   if (res !== "ok") {
+//     // отменяем удаление если пользователь отменил или произошла ошибка
+//     args.preventDefault();
+//   }
+//   args.loaded();
+// };
 
 const deleteBooking = async(id) => {
   try {
@@ -373,6 +465,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+:deep(.dp-event-chevron) {
+  color: #4f8cff;
+}
+
+
 /* (оставь свои стили, ниже только напоминание поправить вложенность .close-btn) */
 .scheduler-container {
   display: flex;
@@ -440,5 +537,25 @@ onMounted(async () => {
 :deep(.dp-col-selected .scheduler_default_cell_inner),
 :deep(.dp-col-selected .scheduler_default_cell_inner:not(.something)) {
   background: transparent; /* оставляем прозрачным, внешний уже подсвечен */
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.list-item {
+  padding: 4px 0;
+  border-bottom: 1px solid #ececec;
+  line-height: 1.28;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.list-item:last-child {
+  border-bottom: none;
 }
 </style>
