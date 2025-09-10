@@ -24,11 +24,14 @@
 </template>
 
 <script setup>
-import { DayPilot, DayPilotScheduler } from 'daypilot-pro-vue';
-import { ref, reactive, onMounted } from 'vue';
+import { DayPilot, DayPilotScheduler } from "daypilot-pro-vue";
+import { ref, reactive, onMounted } from "vue";
 import api from "../api.js";
-import BookingFormOverlay from './BookingFormOverlay.vue';
+import BookingFormOverlay from "./BookingFormOverlay.vue";
+import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
 
+// Подключаем CSS (если Vite/Webpack поддерживает автоимпорт глобально)
+import "../styles/schedulerColumnSelection.css";
 
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
@@ -41,44 +44,6 @@ const start = new DayPilot.Date("2023-11-01");
 const end = new DayPilot.Date("2026-12-31");
 const msPerDay = 24 * 60 * 60 * 1000;
 const days = Math.round((new Date(end.value) - new Date(start.value)) / msPerDay) + 1;
-
-/* ===================== ВЫДЕЛЕНИЕ КОЛОНОК (ВСЁ ЧЕРЕЗ cssClass) ===================== */
-const selectedColumnDates = new Set();   // строки формата yyyy-MM-dd
-let headerAnchor = null;                 // якорная дата (первый клик для диапазона Shift)
-
-function dateKey(dpDate) {
-  return dpDate.toString("yyyy-MM-dd");
-}
-function selectSingle(date) {
-  selectedColumnDates.clear();
-  selectedColumnDates.add(dateKey(date));
-  headerAnchor = date;
-}
-function toggleDate(date) {
-  const k = dateKey(date);
-  if (selectedColumnDates.has(k)) selectedColumnDates.delete(k);
-  else selectedColumnDates.add(k);
-  if (!headerAnchor) headerAnchor = date;
-}
-function selectRange(toDate) {
-  if (!headerAnchor) {
-    selectSingle(toDate);
-    return;
-  }
-  selectedColumnDates.clear();
-  const startDate = headerAnchor.getTime() <= toDate.getTime() ? headerAnchor : toDate;
-  const endDate   = headerAnchor.getTime() >  toDate.getTime() ? headerAnchor : toDate;
-  let cur = startDate;
-  while (cur.getTime() <= endDate.getTime()) {
-    selectedColumnDates.add(dateKey(cur));
-    cur = cur.addDays(1);
-  }
-}
-function clearColumnSelection() {
-  selectedColumnDates.clear();
-  headerAnchor = null;
-}
-/* ============================================================================= */
 
 // Глобальное меню для событий
 let openMenuEventId = null;
@@ -200,54 +165,18 @@ const config = reactive({
   timeHeaderClickHandling: "JavaScript",
 });
 
-//----------функционал выделения облости календаря по кликам на дни-----------------------------------
+/* ===== Подключаем логику выделения колонок через composable ===== */
+const {
+  selectionApi,
+  attach
+} = useSchedulerColumnSelection({ config, schedulerRef });
 
-/* --- Заголовки (дни) --- */
-config.onBeforeTimeHeaderRender= args => {
-  if (args.header.level === 2) { // Day уровень
-    const k = dateKey(args.header.start);
-    if (selectedColumnDates.has(k)) {
-      args.header.cssClass = (args.header.cssClass || "") + " dp-header-selected";
-    }
-    if (headerAnchor && k === dateKey(headerAnchor)) {
-      args.header.cssClass = (args.header.cssClass || "") + " dp-header-anchor";
-      // можно дополнительно подчеркнуть цифру:
-      // args.header.html = `<span style="text-decoration:underline;">${args.header.start.toString("d")}</span>`;
-    }
-  }
-};
+// Подключаем обработчики (цепляемся к onBeforeTimeHeaderRender, onBeforeCellRender, onTimeHeaderClick)
+attach();
 
-    /* --- Ячейки (колонки под выбранными датами) --- */
-    config.onBeforeCellRender= args => {
-  const k = dateKey(args.cell.start);
-  if (selectedColumnDates.has(k)) {
-    args.cell.cssClass = (args.cell.cssClass || "") + " dp-col-selected";
-  }
-};
-
-    /* --- Клики по заголовку --- */
-
-config.onTimeHeaderClick= args => {
-  if (args.header.level !== 2) return;
-  const ev = args.originalEvent || window.event || {};
-  const clickedDate = args.header.start;
-  if (ev.shiftKey) {
-    selectRange(clickedDate);
-  } else if (ev.ctrlKey || ev.metaKey) {
-    toggleDate(clickedDate);
-  } else {
-    const k = dateKey(clickedDate);
-    if (selectedColumnDates.size === 1 && selectedColumnDates.has(k)) {
-      clearColumnSelection();
-    } else {
-      selectSingle(clickedDate);
-    }
-  }
-  schedulerRef.value?.control.update();
-};
-
-
-//--------------------------------------------------------------------------------------------------
+// Пример: доступ к API (можно использовать в кнопках/действиях)
+// selectionApi.getSelectedDates();
+// selectionApi.clear();
 
 // Удаление
 /* Универсальный workflow удаления события
