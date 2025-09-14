@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Login from "../components/Login.vue";
-import Home from "../components/Scheduler1.vue"; // ваш главный компонент
+import Home from "../components/Scheduler.vue"; // ваш главный компонент
 // import Logout from './components/Logout.vue';
 // import Today from './components/Today.vue'
 

@@ -137,6 +137,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel']);
 
 const form = reactive({
+  id: null,  // добавлено для режима редактирования
   roomNumber: '',
   name: '',
   check_in: null,
@@ -151,9 +152,6 @@ const form = reactive({
 });
 
 const errors = reactive({ phone: '' });
-
-// БЫЛО: const submitting = reactive({ value: false });
-// СТАЛО: обычный ref(boolean)
 const submitting = ref(false);
 
 const firstInputRef = ref(null);
@@ -163,6 +161,7 @@ watch(
     () => props.value,
     (v) => {
       if (!v) return;
+      form.id = v.id ?? null;
       form.roomNumber = v.roomNumber ?? '';
       form.name = v.name ?? '';
       form.check_in = v.check_in instanceof DayPilot.Date ? v.check_in : new DayPilot.Date(v.check_in);
@@ -258,6 +257,7 @@ async function submit() {
   submitting.value = true;
   try {
     emit('submit', {
+      id: form.id,  // передаём id
       roomNumber: form.roomNumber,
       name: form.name,
       check_in: form.check_in,
@@ -278,7 +278,7 @@ async function submit() {
 </script>
 
 <style scoped>
-/* (стили оставлены без изменений) */
+/* стили без изменений */
 .booking-overlay {
   position: fixed;
   inset: 0;
