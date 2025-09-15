@@ -1,0 +1,47 @@
+/* Подсветка выбранных дней и колонок для DayPilot Scheduler */
+
+/* 1. Заголовки выбранных дней:
+   - красим и внешний контейнер
+   - и внутренние div, которые тема красит своим background
+*/
+.dp-header-selected,
+.dp-header-selected .scheduler_default_timeheadercol_inner,
+.dp-header-selected .scheduler_default_timeheader_cell_inner {
+  background: linear-gradient(90deg,#4f8cff,#6157ff) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+/* Скругление нужно дублировать, чтобы не «съедалось» внутренним блоком */
+.dp-header-selected {
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden; /* чтобы inner не выходил за радиус */
+}
+.dp-header-selected .scheduler_default_timeheadercol_inner,
+.dp-header-selected .scheduler_default_timeheader_cell_inner {
+  border-radius: 6px;
+}
+
+/* 2. Якорь (первый клик диапазона) */
+.dp-header-anchor {
+  box-shadow: 0 0 0 2px #ffb347 inset;
+}
+
+/* 3. Комбинация: если нужно выделить якорь среди выбранных
+.dp-header-selected.dp-header-anchor {
+  box-shadow: 0 0 0 2px #ffd58c inset;
+}
+*/
+
+/* 4. Колонки (ячейки) */
+.dp-col-selected {
+  background: rgba(79,140,255,0.12) !important;
+  transition: background .15s;
+}
+
+/* Если тема красит внутренности ячеек отдельно, можно добавить:
+.dp-col-selected .scheduler_default_cell_inner {
+  background: transparent !important;
+}
+*/
