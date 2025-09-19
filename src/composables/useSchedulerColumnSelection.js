@@ -23,7 +23,7 @@
 // Можно расширять без правки компонента.
 
 import { ref } from "vue";
-import { DayPilot } from "daypilot-pro-vue";
+import { DayPilot } from "@oreonoreon/calendar";
 
 export function useSchedulerColumnSelection({ config, schedulerRef, options = {} }) {
   const dayHeaderLevel = options.dayHeaderLevel ?? 2;

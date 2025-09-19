@@ -27,7 +27,7 @@
 import { useRouter } from "vue-router";
 const router = useRouter();
 
-import { DayPilot, DayPilotScheduler } from "daypilot-pro-vue";
+import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
 import { ref, reactive, onMounted } from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";

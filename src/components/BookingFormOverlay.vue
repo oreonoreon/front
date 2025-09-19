@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { DayPilot } from 'daypilot-pro-vue';
+import { DayPilot } from '@oreonoreon/calendar';
 import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref } from 'vue';
 
 const props = defineProps({
