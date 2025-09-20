@@ -497,6 +497,7 @@ onMounted(async () => {
   font-size: 20px;
   cursor: pointer;
 }
+/*
 :deep(.dp-header-selected) {
   background: linear-gradient(90deg, #4f8cff, #6157ff);
   color: #fff;
@@ -514,6 +515,7 @@ onMounted(async () => {
 :deep(.dp-col-selected .scheduler_default_cell_inner:not(.something)) {
   background: transparent;
 }
+*/
 .list {
   margin: 0;
   padding: 0;
