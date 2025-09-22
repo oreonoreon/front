@@ -535,5 +535,7 @@ onMounted(async () => {
 .list-item:last-child {
   border-bottom: none;
 }
-
+:deep(.scheduler_default_event_inner) {
+  background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(52, 221, 221) 100%) !important;
+}
 </style>
