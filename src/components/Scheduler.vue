@@ -497,25 +497,6 @@ onMounted(async () => {
   font-size: 20px;
   cursor: pointer;
 }
-/*
-:deep(.dp-header-selected) {
-  background: linear-gradient(90deg, #4f8cff, #6157ff);
-  color: #fff;
-  font-weight: 600;
-  border-radius: 6px;
-}
-:deep(.dp-header-anchor) {
-  box-shadow: 0 0 0 2px #ffb347 inset;
-}
-:deep(.dp-col-selected) {
-  background: rgba(79, 140, 255, 0.12) !important;
-  transition: background .15s;
-}
-:deep(.dp-col-selected .scheduler_default_cell_inner),
-:deep(.dp-col-selected .scheduler_default_cell_inner:not(.something)) {
-  background: transparent;
-}
-*/
 .list {
   margin: 0;
   padding: 0;
