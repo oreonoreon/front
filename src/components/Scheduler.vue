@@ -453,9 +453,51 @@ const loadEvents = async () => {
   config.events = events;
 };
 
+const loadEventsAll = async () => {
+  let events = [];
+  let rooms = [];
+  for (const res of config.resources) {
+   rooms.push(
+       res.id,
+   )
+  }
+    console.log(rooms);
+    const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
+    const bookings = data.bookings || data;
+    bookings.forEach(b => {
+      const checkIn = addElevenHoursDP(b.check_in);
+      const checkOut = addElevenHoursDP(b.check_out);
+      events.push({
+        id: b.id,
+        start: checkIn,
+        end: checkOut,
+        text: b.name,
+        resource: b.roomNumber,
+        tag: {
+          name: b.name,
+          phone: b.phone,
+          roomNumber: b.roomNumber,
+          check_in: checkIn,
+          check_out: checkOut,
+          price: b.price,
+          cleaning_price: b.cleaning_price,
+          electricity_and_water_payment: b.electricity_and_water_payment,
+          adult: b.adult,
+          children: b.children,
+          days: b.days,
+          priceForOneNight: b.price_for_night,
+          reservationDescription: b.reservationDescription,
+        }
+      });
+    });
+
+  config.events = events;
+};
+
 onMounted(async () => {
   await loadResources();
-  await loadEvents();
+  //await loadEvents();
+  await loadEventsAll();
   schedulerRef.value?.control.message("Календарь бронирований загружен!");
   schedulerRef.value?.control.scrollTo(DayPilot.Date.today().addDays(-1));
 });
