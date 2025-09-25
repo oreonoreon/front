@@ -28,7 +28,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
-import { ref, reactive, onMounted } from "vue";
+import {ref, reactive, onMounted, watch} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
 import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
@@ -40,6 +40,13 @@ const selectedGuest = ref(null);
 
 const showBookingForm = ref(false);
 const bookingDraft = ref(null);
+
+// Управление показом колонки Description
+const showDescription = ref(true);
+const toggleDescription = () => {
+  showDescription.value = !showDescription.value;
+  updateRowHeaderColumns();
+};
 
 // Флаги редактирования
 const isEditMode = ref(false);
@@ -159,7 +166,56 @@ const config = reactive({
   },
 
   timeHeaderClickHandling: "JavaScript",
+
+  // Колонки заголовков строк (инициализируются функцией ниже)
+  rowHeaderColumns: [],
+
+  // Рендер содержимого ячеек заголовков строк
+  onBeforeRowHeaderRender: (args) => {
+    // Колонка 0 — "Номер", Колонка 1 — "Description"
+    if (showDescription.value && args.row.columns && args.row.columns.length > 1) {
+      const desc = args.row.data?.description || "";
+      const safe = DayPilot.Util.escapeHtml(desc);
+      // Оборачиваем в div с классом для переноса строк и ограничения ширины
+      args.row.columns[1].html = `<div class="dp-desc-cell" title="${safe}">${safe}</div>`;
+    }
+  },
 });
+
+// Настройка набора колонок заголовков строк
+function updateRowHeaderColumns() {
+  const chevronSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 24 24" width="18" height="18" fill="none"
+         stroke="#4f8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+         style="vertical-align:middle;cursor:pointer;transform:${showDescription.value ? 'rotate(90deg)' : 'rotate(-90deg)'}"
+         class="rowheader-chevron"
+         data-chevron="1"
+    >
+      <polyline points="6 8 12 16 18 8"/>
+    </svg>
+  `;
+  const cols = [
+    {
+      title: "",
+     // width: 120,
+      html: `<span style="display:flex;align-items:center;gap:6px;">
+        <span>Room number</span>${chevronSvg}
+      </span>`,
+      getText: (a) => a.resource.name
+    }
+  ];
+  if (showDescription.value) {
+    cols.push({
+      title: "Description",
+      width: 260,
+    });
+  }
+  config.rowHeaderColumns = cols;
+  schedulerRef.value?.control.update({ rowHeaderColumns: cols });
+}
+
+watch(showDescription, updateRowHeaderColumns);
 
 /* ===== Выделение колонок через composable ===== */
 const { selectionApi, attach } = useSchedulerColumnSelection({ config, schedulerRef });
@@ -394,19 +450,22 @@ const updateBooking = async (id,booking) => {
   }
 };
 
+/* ===== Загрузка ресурсов с description ===== */
 const loadResources = async () => {
   try {
     const { data } = await api.get('/calendar/r');
     config.resources = data.apartments.map(apt => ({
       name: apt.room_number,
       id: apt.room_number,
+      description: apt.description || "",
     }));
+    // После загрузки ресурсов обновим колонки
+    updateRowHeaderColumns();
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
       return;
     }
-    // Остальные ошибки — показываем alert
     if (error.response) {
       const status = error.response.status;
       const msg = error.response.data?.message || error.response.data || error.message;
@@ -417,6 +476,30 @@ const loadResources = async () => {
     throw error;
   }
 };
+
+// const loadResources = async () => {
+//   try {
+//     const { data } = await api.get('/calendar/r');
+//     config.resources = data.apartments.map(apt => ({
+//       name: apt.room_number,
+//       id: apt.room_number,
+//     }));
+//   } catch (error) {
+//     if (error.response && error.response.status === 401) {
+//       router.push("/login");
+//       return;
+//     }
+//     // Остальные ошибки — показываем alert
+//     if (error.response) {
+//       const status = error.response.status;
+//       const msg = error.response.data?.message || error.response.data || error.message;
+//       DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+//     } else {
+//       DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+//     }
+//     throw error;
+//   }
+// };
 
 const loadEvents = async () => {
   let events = [];
@@ -457,55 +540,89 @@ const loadEventsAll = async () => {
   let events = [];
   let rooms = [];
   for (const res of config.resources) {
-   rooms.push(
-       res.id,
-   )
+    rooms.push(
+        res.id,
+    )
   }
-    console.log(rooms);
-    const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
-    const bookings = data.bookings || data;
-    bookings.forEach(b => {
-      const checkIn = addElevenHoursDP(b.check_in);
-      const checkOut = addElevenHoursDP(b.check_out);
-      events.push({
-        id: b.id,
-        start: checkIn,
-        end: checkOut,
-        text: b.name,
-        resource: b.roomNumber,
-        tag: {
-          name: b.name,
-          phone: b.phone,
-          roomNumber: b.roomNumber,
-          check_in: checkIn,
-          check_out: checkOut,
-          price: b.price,
-          cleaning_price: b.cleaning_price,
-          electricity_and_water_payment: b.electricity_and_water_payment,
-          adult: b.adult,
-          children: b.children,
-          days: b.days,
-          priceForOneNight: b.price_for_night,
-          reservationDescription: b.reservationDescription,
-        }
-      });
+
+  const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
+  const bookings = data.bookings || data;
+  bookings.forEach(b => {
+    const checkIn = addElevenHoursDP(b.check_in);
+    const checkOut = addElevenHoursDP(b.check_out);
+    events.push({
+      id: b.id,
+      start: checkIn,
+      end: checkOut,
+      text: b.name,
+      resource: b.roomNumber,
+      tag: {
+        name: b.name,
+        phone: b.phone,
+        roomNumber: b.roomNumber,
+        check_in: checkIn,
+        check_out: checkOut,
+        price: b.price,
+        cleaning_price: b.cleaning_price,
+        electricity_and_water_payment: b.electricity_and_water_payment,
+        adult: b.adult,
+        children: b.children,
+        days: b.days,
+        priceForOneNight: b.price_for_night,
+        reservationDescription: b.reservationDescription,
+      }
     });
+  });
 
   config.events = events;
 };
 
 onMounted(async () => {
+  updateRowHeaderColumns();
   await loadResources();
-  //await loadEvents();
   await loadEventsAll();
   schedulerRef.value?.control.message("Календарь бронирований загружен!");
   schedulerRef.value?.control.scrollTo(DayPilot.Date.today().addDays(-1));
+  schedulerRef.value?.control.update({ separators: [{color:"red", location: DayPilot.Date.now()}] });
+
+  // Делегируем клик по chevron
+  schedulerRef.value?.$el?.addEventListener("click", (e) => {
+    if (e.target.closest('.rowheader-chevron')) {
+      toggleDescription();
+    }
+  });
+
+  setInterval(async () => {
+    await loadEventsAll();
+    schedulerRef.value?.control.update();
+  }, 1000000);
 });
 </script>
 
 <style scoped>
 :deep(.dp-event-chevron) {
   color: #4f8cff;
+}
+/* Кнопка-шеврон для показа/скрытия колонки Description */
+.rowheader-toggle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #4f8cff;
+  padding: 4px;
+}
+
+/* Контент ячеек колонки Description — перенос и ограничение ширины */
+:deep(.dp-desc-cell) {
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .scheduler-container {
