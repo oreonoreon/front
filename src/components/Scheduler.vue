@@ -74,16 +74,17 @@ function buildRowHeaderColumns(show) {
 
   const cols = [
     {
-      title: "",
+      text: "Room number",
+      display: "name",
      // width: 120,
       html: `<span style="display:flex;align-items:center;gap:6px;">
-        <span>Номер</span>${chevronSvg}
+        <span>Room number</span>${chevronSvg}
       </span>`,
       getText: (a) => a.resource.name
     }
   ];
   if (show) {
-    cols.push({ title: "Description", width: 260 });
+    cols.push({ text: "Description", display: "description",  width: 200 });
   }
   return cols;
 }
@@ -101,11 +102,6 @@ function deferRowHeaderUpdate() {
   }
 }
 
-// Инициализация колонок один раз
-function initRowHeaderColumns() {
-  const cols = buildRowHeaderColumns(showDescription.value);
-  schedulerRef.value?.control.update({ rowHeaderColumns: cols });
-}
 
 // Флаги редактирования
 const isEditMode = ref(false);
@@ -227,18 +223,18 @@ const config = reactive({
   timeHeaderClickHandling: "JavaScript",
 
   // Колонки заголовков строк (инициализируются функцией ниже)
-  rowHeaderColumns: [],
+  rowHeaderColumns: [
+    {
+      text: "Room number",
+      display: "name",
+      // width: 120,
+      html: `<span style="display:flex;align-items:center;gap:6px;">
+        <span>Room number</span>${chevronSvg}
+      </span>`,
+    },
+    { text: "Description", display: "description",  width: 200 }
+  ],
 
-  // Рендер содержимого ячеек заголовков строк
-  onBeforeRowHeaderRender: (args) => {
-    // Колонка 0 — "Номер", Колонка 1 — "Description"
-    if (showDescription.value && args.row.columns && args.row.columns.length > 1) {
-      const desc = args.row.data?.description || "";
-      const safe = DayPilot.Util.escapeHtml(desc);
-      // Оборачиваем в div с классом для переноса строк и ограничения ширины
-      args.row.columns[1].html = `<div class="dp-desc-cell" title="${safe}">${safe}</div>`;
-    }
-  },
 });
 
 
@@ -507,8 +503,6 @@ const loadResources = async () => {
       id: apt.room_number,
       description: apt.description || "",
     }));
-    // После загрузки ресурсов обновим колонки
-    updateRowHeaderColumns();
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
@@ -605,7 +599,6 @@ onMounted(async () => {
 // Класс для мгновенного состояния
   schedulerRef.value?.$el?.classList.toggle('desc-hidden', !showDescription.value);
 
-  initRowHeaderColumns(); // один раз
   await loadResources();
   await loadEventsAll();
 
