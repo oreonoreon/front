@@ -84,7 +84,7 @@ function buildRowHeaderColumns(show) {
     }
   ];
   if (show) {
-    cols.push({ text: "Description", display: "description",  width: 200 });
+    cols.push({ text: "Description", display: "description",  maxAutoWidth: 200 });
   }
   return cols;
 }
@@ -232,34 +232,10 @@ const config = reactive({
         <span>Room number</span>${chevronSvg}
       </span>`,
     },
-    { text: "Description", display: "description",  width: 200 }
+    { text: "Description", display: "description",  maxAutoWidth: 200 }
   ],
 
 });
-
-
-
-// Настройка набора колонок заголовков строк
-function updateRowHeaderColumns() {
-  const cols = [
-    {
-      title: "",
-     // width: 120,
-      html: `<span style="display:flex;align-items:center;gap:6px;">
-        <span>Room number</span>${chevronSvg}
-      </span>`,
-      getText: (a) => a.resource.name
-    }
-  ];
-  if (showDescription.value) {
-    cols.push({
-      title: "Description",
-      width: 260,
-    });
-  }
-  config.rowHeaderColumns = cols;
-  schedulerRef.value?.control.update({ rowHeaderColumns: cols });
-}
 
 /* ===== Выделение колонок через composable ===== */
 const { selectionApi, attach } = useSchedulerColumnSelection({ config, schedulerRef });
