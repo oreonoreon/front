@@ -76,11 +76,9 @@ function buildRowHeaderColumns(show) {
     {
       text: "Room number",
       display: "name",
-     // width: 120,
       html: `<span style="display:flex;align-items:center;gap:6px;">
         <span>Room number</span>${chevronSvg}
       </span>`,
-      getText: (a) => a.resource.name
     }
   ];
   if (show) {
