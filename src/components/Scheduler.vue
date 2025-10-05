@@ -233,6 +233,7 @@ const config = reactive({
     { text: "Description", display: "description",  maxAutoWidth: 200 }
   ],
 
+  crosshairType: "Full",
 });
 
 /* ===== Выделение колонок через composable ===== */
@@ -591,7 +592,7 @@ onMounted(async () => {
   setInterval(async () => {
     await loadEventsAll();
     schedulerRef.value?.control.update();
-  }, 1000000);
+  }, 600000);
 });
 </script>
 
