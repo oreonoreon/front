@@ -36,7 +36,7 @@
 
 /* 4. Колонки (ячейки) */
 .dp-col-selected {
-  background: rgba(79,140,255,0.12) !important;
+  background: rgba(79,140,255,0.20) !important;
   transition: background .15s;
 }
 

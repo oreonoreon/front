@@ -27,8 +27,8 @@
 import { useRouter } from "vue-router";
 const router = useRouter();
 
-import { DayPilot, DayPilotScheduler } from "daypilot-pro-vue";
-import { ref, reactive, onMounted } from "vue";
+import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
+import {ref, reactive, onMounted, watch} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
 import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
@@ -40,6 +40,66 @@ const selectedGuest = ref(null);
 
 const showBookingForm = ref(false);
 const bookingDraft = ref(null);
+
+// Управление показом колонки Description
+const showDescription = ref(true);
+
+// Мгновенно скрываем/показываем колонку через класс на корневом элементе,
+// а полный перерасчёт ширины откладываем.
+function toggleDescription() {
+  showDescription.value = !showDescription.value;
+
+  const host = schedulerRef.value?.$el;
+  if (host) {
+    host.classList.toggle('desc-hidden', !showDescription.value); // мгновенно прячем/показываем
+  }
+
+  // Отложенный «настоящий» апдейт колонок (пересчёт ширины левой панели)
+  deferRowHeaderUpdate();
+}
+
+const chevronSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 24 24" width="18" height="18" fill="none"
+         stroke="#4f8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+         class="rowheader-chevron" data-chevron="1">
+      <polyline points="6 8 12 16 18 8"/>
+    </svg>
+  `;
+
+
+
+// Строим набор колонок (1 или 2) без инлайновых transform у шеврона
+function buildRowHeaderColumns(show) {
+
+  const cols = [
+    {
+      text: "Room number",
+      display: "name",
+      html: `<span style="display:flex;align-items:center;gap:6px;">
+        <span>Room number</span>${chevronSvg}
+      </span>`,
+    }
+  ];
+  if (show) {
+    cols.push({ text: "Description", display: "description",  maxAutoWidth: 200 });
+  }
+  return cols;
+}
+
+// Отложить апдейт, чтобы не блокировать клик
+function deferRowHeaderUpdate() {
+  const run = () => {
+    const cols = buildRowHeaderColumns(showDescription.value);
+    schedulerRef.value?.control.update({ rowHeaderColumns: cols });
+  };
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(run, { timeout: 200 });
+  } else {
+    setTimeout(run, 30);
+  }
+}
+
 
 // Флаги редактирования
 const isEditMode = ref(false);
@@ -159,6 +219,21 @@ const config = reactive({
   },
 
   timeHeaderClickHandling: "JavaScript",
+
+  // Колонки заголовков строк (инициализируются функцией ниже)
+  rowHeaderColumns: [
+    {
+      text: "Room number",
+      display: "name",
+      // width: 120,
+      html: `<span style="display:flex;align-items:center;gap:6px;">
+        <span>Room number</span>${chevronSvg}
+      </span>`,
+    },
+    { text: "Description", display: "description",  maxAutoWidth: 200 }
+  ],
+
+  crosshairType: "Full",
 });
 
 /* ===== Выделение колонок через composable ===== */
@@ -394,19 +469,20 @@ const updateBooking = async (id,booking) => {
   }
 };
 
+/* ===== Загрузка ресурсов с description ===== */
 const loadResources = async () => {
   try {
     const { data } = await api.get('/calendar/r');
     config.resources = data.apartments.map(apt => ({
       name: apt.room_number,
       id: apt.room_number,
+      description: apt.description || "",
     }));
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
       return;
     }
-    // Остальные ошибки — показываем alert
     if (error.response) {
       const status = error.response.status;
       const msg = error.response.data?.message || error.response.data || error.message;
@@ -453,17 +529,108 @@ const loadEvents = async () => {
   config.events = events;
 };
 
+const loadEventsAll = async () => {
+  let events = [];
+  let rooms = [];
+  for (const res of config.resources) {
+    rooms.push(
+        res.id,
+    )
+  }
+
+  const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
+  const bookings = data.bookings || data;
+  bookings.forEach(b => {
+    const checkIn = addElevenHoursDP(b.check_in);
+    const checkOut = addElevenHoursDP(b.check_out);
+    events.push({
+      id: b.id,
+      start: checkIn,
+      end: checkOut,
+      text: b.name,
+      resource: b.roomNumber,
+      tag: {
+        name: b.name,
+        phone: b.phone,
+        roomNumber: b.roomNumber,
+        check_in: checkIn,
+        check_out: checkOut,
+        price: b.price,
+        cleaning_price: b.cleaning_price,
+        electricity_and_water_payment: b.electricity_and_water_payment,
+        adult: b.adult,
+        children: b.children,
+        days: b.days,
+        priceForOneNight: b.price_for_night,
+        reservationDescription: b.reservationDescription,
+      }
+    });
+  });
+
+  config.events = events;
+};
+
 onMounted(async () => {
+// Класс для мгновенного состояния
+  schedulerRef.value?.$el?.classList.toggle('desc-hidden', !showDescription.value);
+
   await loadResources();
-  await loadEvents();
+  await loadEventsAll();
+
+  // Делегируем клик по шеврону
+  schedulerRef.value?.$el?.addEventListener("click", (e) => {
+    if (e.target.closest('.rowheader-chevron')) {
+      toggleDescription();
+    }
+  });
+
   schedulerRef.value?.control.message("Календарь бронирований загружен!");
   schedulerRef.value?.control.scrollTo(DayPilot.Date.today().addDays(-1));
+  schedulerRef.value?.control.update({ separators: [{color:"red", location: DayPilot.Date.now()}] });
+
+
+  setInterval(async () => {
+    await loadEventsAll();
+    schedulerRef.value?.control.update();
+  }, 600000);
 });
 </script>
 
 <style scoped>
-:deep(.dp-event-chevron) {
-  color: #4f8cff;
+/* Цвет шеврона уже задан через stroke, добавим плавное вращение */
+:deep(.rowheader-chevron) {
+  transition: transform .15s ease;
+  transform: rotate(90deg);
+}
+
+/* Когда колонка скрыта — повернуть шеврон */
+:deep(.desc-hidden .rowheader-chevron) {
+  transform: rotate(-90deg);
+}
+
+/* Мгновенное скрытие второй колонки заголовков строк и её хедера */
+:deep(.desc-hidden .scheduler_default_rowheadercol:nth-child(2)) {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+:deep(.desc-hidden .scheduler_default_rowheadercolheader:nth-child(2)) {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Контент ячеек колонки Description — перенос и ограничение ширины */
+:deep(.dp-desc-cell) {
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .scheduler-container {
@@ -497,23 +664,6 @@ onMounted(async () => {
   font-size: 20px;
   cursor: pointer;
 }
-:deep(.dp-header-selected) {
-  background: linear-gradient(90deg, #4f8cff, #6157ff);
-  color: #fff;
-  font-weight: 600;
-  border-radius: 6px;
-}
-:deep(.dp-header-anchor) {
-  box-shadow: 0 0 0 2px #ffb347 inset;
-}
-:deep(.dp-col-selected) {
-  background: rgba(79, 140, 255, 0.12) !important;
-  transition: background .15s;
-}
-:deep(.dp-col-selected .scheduler_default_cell_inner),
-:deep(.dp-col-selected .scheduler_default_cell_inner:not(.something)) {
-  background: transparent;
-}
 .list {
   margin: 0;
   padding: 0;
@@ -533,5 +683,7 @@ onMounted(async () => {
 .list-item:last-child {
   border-bottom: none;
 }
-
+:deep(.scheduler_default_event_inner) {
+  background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(52, 221, 221) 100%) !important;
+}
 </style>

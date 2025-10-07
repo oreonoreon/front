@@ -23,22 +23,34 @@
 
         <form class="booking-form" @submit.prevent="submit">
           <div class="form-scroll">
+            <!-- roomNumber -->
             <div class="form-row">
               <label for="roomNumber">Room number</label>
               <input
                   id="roomNumber"
                   v-model="form.roomNumber"
+                  :class="{ invalid: !!errors.roomNumber }"
                   required
                   autocomplete="off"
                   ref="firstInputRef"
               />
+              <p v-if="errors.roomNumber" class="err">{{ errors.roomNumber }}</p>
             </div>
 
+            <!-- name -->
             <div class="form-row">
               <label for="name">Guest name</label>
-              <input id="name" v-model="form.name" required autocomplete="off" />
+              <input
+                  id="name"
+                  v-model="form.name"
+                  :class="{ invalid: !!errors.name }"
+                  required
+                  autocomplete="off"
+              />
+              <p v-if="errors.name" class="err">{{ errors.name }}</p>
             </div>
 
+            <!-- dates -->
             <div class="double">
               <div class="form-row">
                 <label for="check_in">Check In</label>
@@ -47,8 +59,10 @@
                     type="date"
                     :value="toInputDate(form.check_in)"
                     @input="onDateInput($event, 'check_in')"
+                    :class="{ invalid: !!errors.check_in }"
                     required
                 />
+                <p v-if="errors.check_in" class="err">{{ errors.check_in }}</p>
               </div>
               <div class="form-row">
                 <label for="check_out">Check Out</label>
@@ -57,44 +71,91 @@
                     type="date"
                     :value="toInputDate(form.check_out)"
                     @input="onDateInput($event, 'check_out')"
+                    :class="{ invalid: !!errors.check_out }"
                     required
                 />
+                <p v-if="errors.check_out" class="err">{{ errors.check_out }}</p>
               </div>
             </div>
 
+            <!-- price -->
             <div class="form-row">
               <label for="price">Price</label>
-              <input id="price" v-model="form.price" inputmode="numeric" @blur="digitsOrEmpty('price')" />
+              <input
+                  id="price"
+                  v-model="form.price"
+                  inputmode="numeric"
+                  @blur="digitsOrEmpty('price')"
+                  :class="{ invalid: !!errors.price }"
+              />
+              <p v-if="errors.price" class="err">{{ errors.price }}</p>
             </div>
 
+            <!-- phone -->
             <div class="form-row">
               <label for="phone">Phone / Telegram</label>
-              <input id="phone" v-model="form.phone" @blur="validatePhoneField" />
+              <input
+                  id="phone"
+                  v-model="form.phone"
+                  @blur="validatePhoneField"
+                  :class="{ invalid: !!errors.phone }"
+              />
               <p v-if="errors.phone" class="err">{{ errors.phone }}</p>
             </div>
 
+            <!-- cleaning_price / electricity_and_water_payment -->
             <div class="double">
               <div class="form-row">
                 <label for="cleaning_price">Cleaning price</label>
-                <input id="cleaning_price" v-model="form.cleaning_price" inputmode="numeric" @blur="digitsOrEmpty('cleaning_price')" />
+                <input
+                    id="cleaning_price"
+                    v-model="form.cleaning_price"
+                    inputmode="numeric"
+                    @blur="digitsOrEmpty('cleaning_price')"
+                    :class="{ invalid: !!errors.cleaning_price }"
+                />
+                <p v-if="errors.cleaning_price" class="err">{{ errors.cleaning_price }}</p>
               </div>
               <div class="form-row">
                 <label for="electricity_and_water_payment">Electricity/Water</label>
-                <input id="electricity_and_water_payment" v-model="form.electricity_and_water_payment" />
+                <input
+                    id="electricity_and_water_payment"
+                    v-model="form.electricity_and_water_payment"
+                    :class="{ invalid: !!errors.electricity_and_water_payment }"
+                />
+                <p v-if="errors.electricity_and_water_payment" class="err">
+                  {{ errors.electricity_and_water_payment }}
+                </p>
               </div>
             </div>
 
+            <!-- adult / children -->
             <div class="double">
               <div class="form-row">
                 <label for="adult">Adult</label>
-                <input id="adult" v-model="form.adult" inputmode="numeric" @blur="digitsOrEmpty('adult')" />
+                <input
+                    id="adult"
+                    v-model="form.adult"
+                    inputmode="numeric"
+                    @blur="digitsOrEmpty('adult')"
+                    :class="{ invalid: !!errors.adult }"
+                />
+                <p v-if="errors.adult" class="err">{{ errors.adult }}</p>
               </div>
               <div class="form-row">
                 <label for="children">Children</label>
-                <input id="children" v-model="form.children" inputmode="numeric" @blur="digitsOrEmpty('children')" />
+                <input
+                    id="children"
+                    v-model="form.children"
+                    inputmode="numeric"
+                    @blur="digitsOrEmpty('children')"
+                    :class="{ invalid: !!errors.children }"
+                />
+                <p v-if="errors.children" class="err">{{ errors.children }}</p>
               </div>
             </div>
 
+            <!-- reservationDescription (необязательное) -->
             <div class="form-row">
               <label for="reservationDescription">Reservation description</label>
               <textarea
@@ -106,7 +167,7 @@
 
             <div class="form-info">
               <p class="hint">
-                В "Description" описывем всё что небходимо знать для заселения: предоплата 00000 бат оплачено, комиссия агента, имя агента, оплата при заезде, гость от собственника, депозит 300$ или 30000 руб переводом, гость от собственника, HomeExchange гость должен оплатить 2000 бат, имена гостей собствеников если собственник не дал их контакты, возраст детей если есть, переезд в другие квартиры, детская кроватка или стульчик, оплачено через Букинг, оплачено через Аренби,
+                В "Description" описывем всё что небходимо знать для заселения: предоплата 00000 бат оплачено, комиссия агента, имя агента, оплата при заезде, гость от собственника, депозит 300$ или 30000 руб переводом, гость от собственника, HomeExchange гость должен оплатить 2000 бат, имена гостей собственников если собственник не дал их контакты, возраст детей если есть, переезд в другие квартиры, детская кроватка или стульчик, оплачено через Букинг, оплачено через Аренби.
               </p>
             </div>
           </div>
@@ -125,7 +186,7 @@
 </template>
 
 <script setup>
-import { DayPilot } from 'daypilot-pro-vue';
+import { DayPilot } from '@oreonoreon/calendar';
 import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref } from 'vue';
 
 const props = defineProps({
@@ -137,7 +198,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel']);
 
 const form = reactive({
-  id: null,  // добавлено для режима редактирования
+  id: null,
   roomNumber: '',
   name: '',
   check_in: null,
@@ -151,9 +212,22 @@ const form = reactive({
   reservationDescription: '',
 });
 
-const errors = reactive({ phone: '' });
-const submitting = ref(false);
+// Расширенные ошибки по каждому полю
+const errors = reactive({
+  id: '',
+  roomNumber: '',
+  name: '',
+  check_in: '',
+  check_out: '',
+  price: '',
+  phone: '',
+  cleaning_price: '',
+  electricity_and_water_payment: '',
+  adult: '',
+  children: '',
+});
 
+const submitting = ref(false);
 const firstInputRef = ref(null);
 const panelRef = ref(null);
 
@@ -164,16 +238,16 @@ watch(
       form.id = v.id ?? null;
       form.roomNumber = v.roomNumber ?? '';
       form.name = v.name ?? '';
-      form.check_in = v.check_in instanceof DayPilot.Date ? v.check_in : new DayPilot.Date(v.check_in);
-      form.check_out = v.check_out instanceof DayPilot.Date ? v.check_out : new DayPilot.Date(v.check_out);
-      form.price = v.price ?? '';
+      form.check_in = v.check_in instanceof DayPilot.Date ? v.check_in : (v.check_in ? new DayPilot.Date(v.check_in) : null);
+      form.check_out = v.check_out instanceof DayPilot.Date ? v.check_out : (v.check_out ? new DayPilot.Date(v.check_out) : null);
+      form.price = v.price === undefined || v.price === null ? '' : String(v.price);
       form.phone = v.phone ?? '';
-      form.cleaning_price = v.cleaning_price ?? '';
+      form.cleaning_price = v.cleaning_price === undefined || v.cleaning_price === null ? '' : String(v.cleaning_price);
       form.electricity_and_water_payment = v.electricity_and_water_payment ?? '';
-      form.adult = v.adult ?? '';
-      form.children = v.children ?? '';
+      form.adult = v.adult === undefined || v.adult === null ? '' : String(v.adult);
+      form.children = v.children === undefined || v.children === null ? '' : String(v.children);
       form.reservationDescription = v.reservationDescription ?? '';
-      errors.phone = '';
+      clearErrors();
       nextTick(() => firstInputRef.value?.focus());
     },
     { immediate: true }
@@ -227,6 +301,12 @@ function onDateInput(e, field) {
   form[field] = value ? new DayPilot.Date(value + 'T00:00:00') : null;
 }
 
+// Очищает всё сообщения об ошибках
+function clearErrors() {
+  Object.keys(errors).forEach(k => { errors[k] = ''; });
+}
+
+// Оставляет только цифры, иначе очищает поле
 function digitsOrEmpty(field) {
   const v = form[field];
   if (v === '') return;
@@ -235,21 +315,68 @@ function digitsOrEmpty(field) {
   }
 }
 
+// Телефон обязателен и должен быть либо +цифры(10–15), либо Telegram username
 function validatePhoneField() {
   errors.phone = '';
-  if (!form.phone) return;
-  const phoneRegex = /^\+{1}\d{10,15}$/;
+  if (form.phone === '') {
+    errors.phone = 'Обязательное поле';
+    return;
+  }
+  const phoneRegex = /^\+\d{10,15}$/;
   const tgRegex = /^@?[A-Za-z0-9_]{5,32}$/;
   if (!phoneRegex.test(form.phone) && !tgRegex.test(form.phone)) {
     errors.phone = 'Телефон (+ и 10–15 цифр) или Telegram (5–32 символа)';
   }
 }
 
+// Общая валидация всех полей кроме reservationDescription
 function validateAll() {
+  clearErrors();
+
+  // id обязателен только в режиме редактирования
+  if (props.isEdit && (form.id === null || form.id === undefined || form.id === '')) {
+    errors.id = 'ID обязателен в режиме редактирования';
+  }
+
+  // Обязательные строковые поля (не пустые строки)
+  const requiredStringFields = [
+    'roomNumber',
+    'name',
+    'price',
+    'phone',
+    'cleaning_price',
+    'electricity_and_water_payment',
+    'adult',
+    'children',
+  ];
+  for (const f of requiredStringFields) {
+    if (form[f] === '') {
+      errors[f] = 'Обязательное поле';
+    }
+  }
+
+  // Числовые поля: только цифры
+  const digitOnly = ['price', 'cleaning_price', 'adult', 'children'];
+  for (const f of digitOnly) {
+    if (form[f] !== '' && !/^\d+$/.test(form[f])) {
+      errors[f] = 'Только цифры';
+    }
+  }
+
+  // Даты обязательны
+  if (!form.check_in) errors.check_in = 'Обязательное поле';
+  if (!form.check_out) errors.check_out = 'Обязательное поле';
+
+  // Дополнительно можно запретить check_out раньше check_in
+  if (form.check_in && form.check_out && form.check_out.getTime() < form.check_in.getTime()) {
+    errors.check_out = 'Check Out не может быть раньше Check In';
+  }
+
+  // Телефон: обязательность и формат
   validatePhoneField();
-  if (!form.roomNumber || !form.name || !form.check_in || !form.check_out) return false;
-  if (errors.phone) return false;
-  return true;
+
+  // Есть ли хоть одна ошибка?
+  return !Object.values(errors).some(Boolean);
 }
 
 async function submit() {
@@ -257,7 +384,7 @@ async function submit() {
   submitting.value = true;
   try {
     emit('submit', {
-      id: form.id,  // передаём id
+      id: form.id,
       roomNumber: form.roomNumber,
       name: form.name,
       check_in: form.check_in,
@@ -278,7 +405,7 @@ async function submit() {
 </script>
 
 <style scoped>
-/* стили без изменений */
+/* стили без изменений + подсветка невалидных полей */
 .booking-overlay {
   position: fixed;
   inset: 0;
@@ -394,6 +521,10 @@ input, textarea {
 }
 input:focus, textarea:focus {
   border-color: #7a8bff;
+  background: #fff;
+}
+input.invalid, textarea.invalid {
+  border-color: #d9343a;
   background: #fff;
 }
 textarea {
