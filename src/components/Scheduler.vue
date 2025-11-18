@@ -273,6 +273,46 @@ const config = reactive({
 });
 
 
+// const generateReport = async (room_number, start, end) => {
+//   try {
+//     const response = await api.post('/calendar/report', {
+//       room_number,
+//       start,
+//       end
+//     }, {
+//       responseType: 'blob'
+//     });
+//
+//     // Создаём ссылку для скачивания файла
+//     const url = window.URL.createObjectURL(new Blob([response.data]));
+//     const link = document.createElement('a');
+//     link.href = url;
+//
+//     // Получаем имя файла из заголовков или используём дефолтное
+//     const contentDisposition = response.headers['content-disposition'];
+//     const fileName = contentDisposition
+//         ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+//         : `report_${room_number}.pdf`;
+//
+//     link.setAttribute('download', fileName);
+//     document.body.appendChild(link);
+//     link.click();
+//     link.remove();
+//     window.URL.revokeObjectURL(url);
+//
+//     schedulerRef.value?.control.message("Отчёт успешно загружен");
+//   } catch (error) {
+//     if (error.response) {
+//       const status = error.response.status;
+//       const msg = error.response.data?.message || error.response.data || error.message;
+//       await DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+//     } else {
+//       await DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+//     }
+//     throw error;
+//   }
+// };
+
 const generateReport = async (room_number, start, end) => {
   try {
     const response = await api.post('/calendar/report', {
@@ -283,16 +323,19 @@ const generateReport = async (room_number, start, end) => {
       responseType: 'blob'
     });
 
-    // Создаём ссылку для скачивания файла
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    // ВАЖНО: явно указываем MIME-тип из заголовков ответа
+    const contentType = response.headers['content-type'] ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
 
-    // Получаем имя файла из заголовков или используём дефолтное
     const contentDisposition = response.headers['content-disposition'];
     const fileName = contentDisposition
         ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
-        : `report_${room_number}.pdf`;
+        : `report_${room_number}.xlsx`;
 
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
