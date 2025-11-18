@@ -61,8 +61,9 @@ function toggleDescription() {
 const chevronSvg = `
     <svg xmlns="http://www.w3.org/2000/svg"
          viewBox="0 0 24 24" width="18" height="18" fill="none"
-         stroke="#4f8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+         stroke="#4f8cff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
          class="rowheader-chevron" data-chevron="1">
+         
       <polyline points="6 8 12 16 18 8"/>
     </svg>
   `;
@@ -142,6 +143,39 @@ const eventMenu = new DayPilot.Menu({
     menuOpen = false;
   }
 });
+
+const headerMenu = new DayPilot.Menu({
+  items: [
+    {
+      text: "Report",
+      onClick: async (args) => {
+        const form = [
+          {name: "Apartment", id: "room_number", type: "text"},
+          {name: "Start date", id: "start", type: "date", dateFormat: "yyyy-MM-dd"},
+          {name: "End Date", id: "end", type: "date", dateFormat: "yyyy-MM-dd"}
+        ];
+        const data = {room_number: args.source.id};
+        const modal = await DayPilot.Modal.form(form, data);
+
+        if (modal.canceled) {
+          return;
+        }
+
+        // Преобразуем DayPilot.Date в строку формата YYYY-MM-DD
+        const startDate = new DayPilot.Date(modal.result.start).toString("yyyy-MM-dd");
+        const endDate = new DayPilot.Date(modal.result.end).toString("yyyy-MM-dd");
+
+        await generateReport(
+            modal.result.room_number,
+            startDate,
+            endDate
+        );
+      }
+    }
+  ]
+});
+
+
 
 const config = reactive({
   heightSpec: "Parent100Pct",
@@ -234,7 +268,52 @@ const config = reactive({
   ],
 
   crosshairType: "Full",
+
+  contextMenuResource: headerMenu,
 });
+
+
+const generateReport = async (room_number, start, end) => {
+  try {
+    const response = await api.post('/calendar/report', {
+      room_number,
+      start,
+      end
+    }, {
+      responseType: 'blob'
+    });
+
+    // Создаём ссылку для скачивания файла
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Получаем имя файла из заголовков или используём дефолтное
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `report_${room_number}.pdf`;
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    schedulerRef.value?.control.message("Отчёт успешно загружен");
+  } catch (error) {
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      await DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      await DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+
 
 /* ===== Выделение колонок через composable ===== */
 const { selectionApi, attach } = useSchedulerColumnSelection({ config, schedulerRef });
