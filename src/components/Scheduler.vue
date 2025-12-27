@@ -768,7 +768,6 @@ onMounted(async () => {
   width: 100vw;
   min-width: 0;
   overflow: hidden;
-  padding-top: 56px; /* Отступ для Navbar */
   box-sizing: border-box;
 }
 .scheduler-wrapper {
