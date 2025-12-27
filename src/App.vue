@@ -14,6 +14,7 @@ const showNavbar = computed(() => !route.meta.hideNavbar)
 </script>
 <style>
 .app-content {
+  height:  100dvh;
   width: 100vw;
   min-width: 0;
   overflow-x: auto;
