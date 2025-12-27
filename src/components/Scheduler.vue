@@ -764,7 +764,7 @@ onMounted(async () => {
   overflow: hidden;
    */
   display: flex;
-  height: 100dvh; /* Динамическая высота viewport */
+  height: calc(100dvh - 56px); /* Вычитаем высоту navbar */
   width: 100vw;
   min-width: 0;
   overflow: hidden;
