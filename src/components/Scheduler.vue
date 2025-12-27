@@ -756,11 +756,20 @@ onMounted(async () => {
 }
 
 .scheduler-container {
+  /*
   display: flex;
   height: calc(100vh - 56px);
   width: 100vw;
   min-width: 0;
   overflow: hidden;
+   */
+  display: flex;
+  height: 100dvh; /* Динамическая высота viewport */
+  width: 100vw;
+  min-width: 0;
+  overflow: hidden;
+  padding-top: 56px; /* Отступ для Navbar */
+  box-sizing: border-box;
 }
 .scheduler-wrapper {
   flex: 1;
