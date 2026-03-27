@@ -324,6 +324,12 @@ const { selectionApi, attach } = useSchedulerColumnSelection({ config, scheduler
 attach();
 
 /* ====== Редактирование ====== */
+function extractTime(dpDate) {
+  if (!dpDate) return null;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  return d.toString('HH:mm:ss');
+}
+
 function openEditForm(event) {
   editingEvent.value = event;
   isEditMode.value = true;
@@ -335,6 +341,8 @@ function openEditForm(event) {
     name: t.name ?? event.data.text,
     check_in: event.data.start,
     check_out: event.data.end,
+    check_in_time: extractTime(event.data.start) ?? '13:00:00',
+    check_out_time: extractTime(event.data.end) ?? '11:00:00',
     price: t.price ?? '',
     phone: t.phone ?? '',
     cleaning_price: t.cleaning_price ?? '',
@@ -406,6 +414,8 @@ config.onTimeRangeSelected = async (args) => {
     name: '',
     check_in: args.start,
     check_out: args.end,
+    check_in_time: '13:00:00',
+    check_out_time: '11:00:00',
     price: '',
     phone: '',
     cleaning_price: 1500,
@@ -418,15 +428,27 @@ config.onTimeRangeSelected = async (args) => {
 };
 
 function addElevenHoursDP(iso) {
-  return new DayPilot.Date(iso).addHours(11);
+  //return new DayPilot.Date(iso).addHours(11);
+  return new DayPilot.Date(iso);
+}
+
+// Применяет строку времени "HH:mm:ss" к DayPilot.Date и возвращает новый DayPilot.Date
+function applyTime(dpDate, timeStr) {
+  if (!dpDate || !timeStr) return dpDate;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  const datePart = d.toString('yyyy-MM-dd');
+  return new DayPilot.Date(datePart + 'T' + timeStr);
 }
 
 async function handleBookingSubmit(result) {
+  const checkInWithTime  = applyTime(result.check_in,  result.check_in_time);
+  const checkOutWithTime = applyTime(result.check_out, result.check_out_time);
+
   const payload = {
     roomNumber: result.roomNumber,
     name: result.name,
-    check_in: result.check_in.toString() + 'Z',
-    check_out: result.check_out.toString() + 'Z',
+    check_in: checkInWithTime.toString() + 'Z',
+    check_out: checkOutWithTime.toString() + 'Z',
     price: parseInt(result.price || 0),
     cleaning_price: parseInt(result.cleaning_price || 0),
     electricity_and_water_payment: result.electricity_and_water_payment,
@@ -440,8 +462,14 @@ async function handleBookingSubmit(result) {
     const id = result.id || editingEvent.value.data.id;
     try {
       const updated = await updateBooking(id, payload);
-      const newStart = new DayPilot.Date(updated.check_in).addHours(11);
-      const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
+
+      //старая версия добавления 11 часов, теперь вынесенная в функцию для переиспользования
+      // const newStart = new DayPilot.Date(updated.check_in).addHours(11);
+      // const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
+
+      // Новая версия с функцией addElevenHoursDP для добавления 11 часов
+      const newStart = addElevenHoursDP(updated.check_in);
+      const newEnd   = addElevenHoursDP(updated.check_out);
 
       const ev = editingEvent.value;
       ev.data.start = newStart;

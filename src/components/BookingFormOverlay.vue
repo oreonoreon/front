@@ -3,6 +3,7 @@
     <div
         v-if="modelValue"
         class="booking-overlay"
+        lang="en-GB"
         @keydown.esc.stop.prevent="cancel"
     >
       <div class="backdrop" @click="cancel"></div>
@@ -63,6 +64,12 @@
                     required
                 />
                 <p v-if="errors.check_in" class="err">{{ errors.check_in }}</p>
+                <label for="check_in_time" style="margin-top:6px;">Check In Time</label>
+                <flat-pickr
+                    v-model="form.check_in_time"
+                    :config="timePickerConfig"
+                    class="flatpickr-input"
+                />
               </div>
               <div class="form-row">
                 <label for="check_out">Check Out</label>
@@ -75,6 +82,12 @@
                     required
                 />
                 <p v-if="errors.check_out" class="err">{{ errors.check_out }}</p>
+                <label for="check_out_time" style="margin-top:6px;">Check Out Time</label>
+                <flat-pickr
+                    v-model="form.check_out_time"
+                    :config="timePickerConfig"
+                    class="flatpickr-input"
+                />
               </div>
             </div>
 
@@ -188,6 +201,18 @@
 <script setup>
 import { DayPilot } from '@oreonoreon/calendar';
 import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref } from 'vue';
+import flatPickr from 'vue-flatpickr-component';
+import 'flatpickr/dist/flatpickr.css';
+
+/* ── Конфиг flatpickr для 24-часового time picker ── */
+const timePickerConfig = {
+  enableTime: true,
+  noCalendar: true,
+  dateFormat: 'H:i:S',
+  time_24hr: true,
+  enableSeconds: true,
+  static: true,
+};
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -203,6 +228,8 @@ const form = reactive({
   name: '',
   check_in: null,
   check_out: null,
+  check_in_time: '13:00:00',
+  check_out_time: '11:00:00',
   price: '',
   phone: '',
   cleaning_price: '',
@@ -240,6 +267,8 @@ watch(
       form.name = v.name ?? '';
       form.check_in = v.check_in instanceof DayPilot.Date ? v.check_in : (v.check_in ? new DayPilot.Date(v.check_in) : null);
       form.check_out = v.check_out instanceof DayPilot.Date ? v.check_out : (v.check_out ? new DayPilot.Date(v.check_out) : null);
+      form.check_in_time = v.check_in_time ?? '13:00:00';
+      form.check_out_time = v.check_out_time ?? '11:00:00';
       form.price = v.price === undefined || v.price === null ? '' : String(v.price);
       form.phone = v.phone ?? '';
       form.cleaning_price = v.cleaning_price === undefined || v.cleaning_price === null ? '' : String(v.cleaning_price);
@@ -389,6 +418,8 @@ async function submit() {
       name: form.name,
       check_in: form.check_in,
       check_out: form.check_out,
+      check_in_time: form.check_in_time,
+      check_out_time: form.check_out_time,
       price: form.price,
       phone: form.phone,
       cleaning_price: form.cleaning_price,
@@ -599,4 +630,23 @@ textarea {
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Flatpickr time picker styling ── */
+.flatpickr-input {
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  background: #f9fafb;
+  transition: border-color .15s, background .15s;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.flatpickr-input:focus {
+  border-color: #7a8bff;
+  background: #fff;
+}
 </style>
