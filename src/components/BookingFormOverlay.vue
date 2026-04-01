@@ -65,10 +65,13 @@
                 />
                 <p v-if="errors.check_in" class="err">{{ errors.check_in }}</p>
                 <label for="check_in_time" style="margin-top:6px;">Check In Time</label>
-                <flat-pickr
-                    v-model="form.check_in_time"
-                    :config="timePickerConfig"
-                    class="flatpickr-input"
+                <vue-timepicker
+                    v-model="checkInTimeObj"
+                    format="HH:mm"
+                    :hour-range="[[0,23]]"
+                    :minute-interval="1"
+                    close-on-complete
+                    input-class="time-picker-input"
                 />
               </div>
               <div class="form-row">
@@ -83,10 +86,13 @@
                 />
                 <p v-if="errors.check_out" class="err">{{ errors.check_out }}</p>
                 <label for="check_out_time" style="margin-top:6px;">Check Out Time</label>
-                <flat-pickr
-                    v-model="form.check_out_time"
-                    :config="timePickerConfig"
-                    class="flatpickr-input"
+                <vue-timepicker
+                    v-model="checkOutTimeObj"
+                    format="HH:mm"
+                    :hour-range="[[0,23]]"
+                    :minute-interval="1"
+                    close-on-complete
+                    input-class="time-picker-input"
                 />
               </div>
             </div>
@@ -200,19 +206,34 @@
 
 <script setup>
 import { DayPilot } from '@oreonoreon/calendar';
-import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref } from 'vue';
-import flatPickr from 'vue-flatpickr-component';
-import 'flatpickr/dist/flatpickr.css';
+import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref, computed } from 'vue';
+import VueTimepicker from 'vue3-timepicker';
+import 'vue3-timepicker/dist/VueTimepicker.css';
 
-/* ── Конфиг flatpickr для 24-часового time picker ── */
-const timePickerConfig = {
-  enableTime: true,
-  noCalendar: true,
-  dateFormat: 'H:i:S',
-  time_24hr: true,
-  enableSeconds: true,
-  static: true,
-};
+/* ── Computed-обёртки для vue3-timepicker (HH:mm формат) ── */
+const checkInTimeObj = computed({
+  get() {
+    const [HH = '13', mm = '00'] = (form.check_in_time || '13:00:00').split(':');
+    return { HH, mm };
+  },
+  set(val) {
+    if (val && val.HH !== '' && val.mm !== '') {
+      form.check_in_time = `${val.HH}:${val.mm}:00`;
+    }
+  },
+});
+
+const checkOutTimeObj = computed({
+  get() {
+    const [HH = '11', mm = '00'] = (form.check_out_time || '11:00:00').split(':');
+    return { HH, mm };
+  },
+  set(val) {
+    if (val && val.HH !== '' && val.mm !== '') {
+      form.check_out_time = `${val.HH}:${val.mm}:00`;
+    }
+  },
+});
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -631,8 +652,11 @@ textarea {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Flatpickr time picker styling ── */
-.flatpickr-input {
+/* ── vue3-timepicker styling ── */
+:deep(.vue__time-picker) {
+  width: 100%;
+}
+:deep(.vue__time-picker input.time-picker-input) {
   border: 1px solid #d7dce5;
   border-radius: 8px;
   padding: 8px 10px;
@@ -644,9 +668,13 @@ textarea {
   width: 100%;
   box-sizing: border-box;
   cursor: pointer;
+  height: auto;
 }
-.flatpickr-input:focus {
+:deep(.vue__time-picker input.time-picker-input:focus) {
   border-color: #7a8bff;
   background: #fff;
+}
+:deep(.vue__time-picker .dropdown) {
+  z-index: 5000;
 }
 </style>
