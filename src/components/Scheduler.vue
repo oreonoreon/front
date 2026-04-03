@@ -42,7 +42,7 @@ const showBookingForm = ref(false);
 const bookingDraft = ref(null);
 
 // Управление показом колонки Description
-const showDescription = ref(true);
+const showDescription = ref(false);
 
 // Мгновенно скрываем/показываем колонку через класс на корневом элементе,
 // а полный перерасчёт ширины откладываем.
@@ -60,9 +60,10 @@ function toggleDescription() {
 
 const chevronSvg = `
     <svg xmlns="http://www.w3.org/2000/svg"
-         viewBox="0 0 24 24" width="18" height="18" fill="none"
+         viewBox="0 0 24 24" width="20" height="20" fill="none"
          stroke="#4f8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
          class="rowheader-chevron" data-chevron="1">
+         
       <polyline points="6 8 12 16 18 8"/>
     </svg>
   `;
@@ -142,6 +143,39 @@ const eventMenu = new DayPilot.Menu({
     menuOpen = false;
   }
 });
+
+const headerMenu = new DayPilot.Menu({
+  items: [
+    {
+      text: "Report",
+      onClick: async (args) => {
+        const form = [
+          {name: "Apartment", id: "room_number", type: "text"},
+          {name: "Start date", id: "start", type: "date", dateFormat: "yyyy-MM-dd"},
+          {name: "End Date", id: "end", type: "date", dateFormat: "yyyy-MM-dd"}
+        ];
+        const data = {room_number: args.source.id};
+        const modal = await DayPilot.Modal.form(form, data);
+
+        if (modal.canceled) {
+          return;
+        }
+
+        // Преобразуем DayPilot.Date в строку формата YYYY-MM-DD
+        const startDate = new DayPilot.Date(modal.result.start).toString("yyyy-MM-dd");
+        const endDate = new DayPilot.Date(modal.result.end).toString("yyyy-MM-dd");
+
+        await generateReport(
+            modal.result.room_number,
+            startDate,
+            endDate
+        );
+      }
+    }
+  ]
+});
+
+
 
 const config = reactive({
   heightSpec: "Parent100Pct",
@@ -229,18 +263,78 @@ const config = reactive({
       html: `<span style="display:flex;align-items:center;gap:6px;">
         <span>Room number</span>${chevronSvg}
       </span>`,
-    },
-    { text: "Description", display: "description",  maxAutoWidth: 200 }
+    }
   ],
 
   crosshairType: "Full",
+
+  contextMenuResource: headerMenu,
 });
+
+
+// Функция генерации и скачивания отчёта
+const generateReport = async (room_number, start, end) => {
+  try {
+    const response = await api.post('/calendar/report', {
+      room_number,
+      start,
+      end
+    }, {
+      responseType: 'blob'
+    });
+
+    // ВАЖНО: явно указываем MIME-тип из заголовков ответа
+    const contentType = response.headers['content-type'] ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `report_${room_number}.xlsx`;
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    schedulerRef.value?.control.message("Отчёт успешно загружен");
+  } catch (error) {
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      await DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      await DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+
 
 /* ===== Выделение колонок через composable ===== */
 const { selectionApi, attach } = useSchedulerColumnSelection({ config, schedulerRef });
 attach();
 
 /* ====== Редактирование ====== */
+function extractTime(dpDate) {
+  if (!dpDate) return null;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  return d.toString('HH:mm:ss');
+}
+
+function extractDate(dpDate) {
+  if (!dpDate) return null;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  return d.toString('yyyy-MM-dd');
+}
+
 function openEditForm(event) {
   editingEvent.value = event;
   isEditMode.value = true;
@@ -252,6 +346,8 @@ function openEditForm(event) {
     name: t.name ?? event.data.text,
     check_in: event.data.start,
     check_out: event.data.end,
+    check_in_time: t.check_in_time ?? extractTime(event.data.start) ?? '13:00:00',
+    check_out_time: t.check_out_time ?? extractTime(event.data.end) ?? '11:00:00',
     price: t.price ?? '',
     phone: t.phone ?? '',
     cleaning_price: t.cleaning_price ?? '',
@@ -323,6 +419,8 @@ config.onTimeRangeSelected = async (args) => {
     name: '',
     check_in: args.start,
     check_out: args.end,
+    check_in_time: '13:00:00',
+    check_out_time: '11:00:00',
     price: '',
     phone: '',
     cleaning_price: 1500,
@@ -335,15 +433,27 @@ config.onTimeRangeSelected = async (args) => {
 };
 
 function addElevenHoursDP(iso) {
-  return new DayPilot.Date(iso).addHours(11);
+  //return new DayPilot.Date(iso).addHours(11);
+  return new DayPilot.Date(iso);
+}
+
+// Применяет строку времени "HH:mm:ss" к DayPilot.Date и возвращает новый DayPilot.Date
+function applyTime(dpDate, timeStr) {
+  if (!dpDate || !timeStr) return dpDate;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  const datePart = d.toString('yyyy-MM-dd');
+  return new DayPilot.Date(datePart + 'T' + timeStr);
 }
 
 async function handleBookingSubmit(result) {
+  const checkInWithTime  = applyTime(result.check_in,  result.check_in_time);
+  const checkOutWithTime = applyTime(result.check_out, result.check_out_time);
+
   const payload = {
     roomNumber: result.roomNumber,
     name: result.name,
-    check_in: result.check_in.toString() + 'Z',
-    check_out: result.check_out.toString() + 'Z',
+    check_in: checkInWithTime.toString() + 'Z',
+    check_out: checkOutWithTime.toString() + 'Z',
     price: parseInt(result.price || 0),
     cleaning_price: parseInt(result.cleaning_price || 0),
     electricity_and_water_payment: result.electricity_and_water_payment,
@@ -357,8 +467,14 @@ async function handleBookingSubmit(result) {
     const id = result.id || editingEvent.value.data.id;
     try {
       const updated = await updateBooking(id, payload);
-      const newStart = new DayPilot.Date(updated.check_in).addHours(11);
-      const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
+
+      //старая версия добавления 11 часов, теперь вынесенная в функцию для переиспользования
+      // const newStart = new DayPilot.Date(updated.check_in).addHours(11);
+      // const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
+
+      // Новая версия с функцией addElevenHoursDP для добавления 11 часов
+      const newStart = addElevenHoursDP(updated.check_in);
+      const newEnd   = addElevenHoursDP(updated.check_out);
 
       const ev = editingEvent.value;
       ev.data.start = newStart;
@@ -369,8 +485,10 @@ async function handleBookingSubmit(result) {
         name: updated.name,
         phone: updated.phone,
         roomNumber: updated.roomNumber,
-        check_in: newStart,
-        check_out: newEnd,
+        check_in: extractDate(newStart),
+        check_out: extractDate(newEnd),
+        check_in_time: extractTime(newStart) ?? '13:00:00',
+        check_out_time: extractTime(newEnd) ?? '11:00:00',
         price: updated.price,
         cleaning_price: updated.cleaning_price,
         electricity_and_water_payment: updated.electricity_and_water_payment,
@@ -408,8 +526,10 @@ async function handleBookingSubmit(result) {
       name: d.name,
       phone: d.phone,
       roomNumber: d.roomNumber,
-      check_in: checkIn,
-      check_out: checkOut,
+      check_in: extractDate(checkIn),
+      check_out: extractDate(checkOut),
+      check_in_time: extractTime(checkIn) ?? '13:00:00',
+      check_out_time: extractTime(checkOut) ?? '11:00:00',
       price: d.price,
       cleaning_price: d.cleaning_price,
       electricity_and_water_payment: d.electricity_and_water_payment,
@@ -512,8 +632,10 @@ const loadEvents = async () => {
           name: b.name,
           phone: b.phone,
           roomNumber: b.roomNumber,
-          check_in: checkIn,
-          check_out: checkOut,
+          check_in: extractDate(checkIn),
+          check_out: extractDate(checkOut),
+          check_in_time: extractTime(checkIn) ?? '13:00:00',
+          check_out_time: extractTime(checkOut) ?? '11:00:00',
           price: b.price,
           cleaning_price: b.cleaning_price,
           electricity_and_water_payment: b.electricity_and_water_payment,
@@ -553,8 +675,10 @@ const loadEventsAll = async () => {
         name: b.name,
         phone: b.phone,
         roomNumber: b.roomNumber,
-        check_in: checkIn,
-        check_out: checkOut,
+        check_in: extractDate(checkIn),
+        check_out: extractDate(checkOut),
+        check_in_time: extractTime(checkIn) ?? '13:00:00',
+        check_out_time: extractTime(checkOut) ?? '11:00:00',
         price: b.price,
         cleaning_price: b.cleaning_price,
         electricity_and_water_payment: b.electricity_and_water_payment,
@@ -601,11 +725,42 @@ onMounted(async () => {
 :deep(.rowheader-chevron) {
   transition: transform .15s ease;
   transform: rotate(90deg);
+  cursor: pointer;
+  padding: 4px;
+  min-width: 20px;
+  min-height: 20px;
+  box-sizing: content-box;
+  border-radius: 4px;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Расширяем кликабельную область вокруг шеврона */
+:deep(.rowheader-chevron::after) {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+}
+
+:deep(.rowheader-chevron:hover) {
+  background: rgba(79, 140, 255, 0.12);
 }
 
 /* Когда колонка скрыта — повернуть шеврон */
 :deep(.desc-hidden .rowheader-chevron) {
   transform: rotate(-90deg);
+}
+
+/* Первая колонка заголовка — не обрезать шеврон */
+:deep(.scheduler_default_rowheadercolheader:first-child) {
+  overflow: visible !important;
+}
+:deep(.scheduler_default_rowheadercol:first-child) {
+  overflow: visible !important;
 }
 
 /* Мгновенное скрытие второй колонки заголовков строк и её хедера */
@@ -634,11 +789,19 @@ onMounted(async () => {
 }
 
 .scheduler-container {
+  /*
   display: flex;
   height: calc(100vh - 56px);
   width: 100vw;
   min-width: 0;
   overflow: hidden;
+   */
+  display: flex;
+  height: calc(100dvh - 56px); /* Вычитаем высоту navbar */
+  width: 100vw;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .scheduler-wrapper {
   flex: 1;
