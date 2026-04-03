@@ -330,6 +330,12 @@ function extractTime(dpDate) {
   return d.toString('HH:mm:ss');
 }
 
+function extractDate(dpDate) {
+  if (!dpDate) return null;
+  const d = dpDate instanceof DayPilot.Date ? dpDate : new DayPilot.Date(dpDate);
+  return d.toString('yyyy-MM-dd');
+}
+
 function openEditForm(event) {
   editingEvent.value = event;
   isEditMode.value = true;
@@ -341,8 +347,8 @@ function openEditForm(event) {
     name: t.name ?? event.data.text,
     check_in: event.data.start,
     check_out: event.data.end,
-    check_in_time: extractTime(event.data.start) ?? '13:00:00',
-    check_out_time: extractTime(event.data.end) ?? '11:00:00',
+    check_in_time: t.check_in_time ?? extractTime(event.data.start) ?? '13:00:00',
+    check_out_time: t.check_out_time ?? extractTime(event.data.end) ?? '11:00:00',
     price: t.price ?? '',
     phone: t.phone ?? '',
     cleaning_price: t.cleaning_price ?? '',
@@ -480,8 +486,10 @@ async function handleBookingSubmit(result) {
         name: updated.name,
         phone: updated.phone,
         roomNumber: updated.roomNumber,
-        check_in: newStart,
-        check_out: newEnd,
+        check_in: extractDate(newStart),
+        check_out: extractDate(newEnd),
+        check_in_time: extractTime(newStart) ?? '13:00:00',
+        check_out_time: extractTime(newEnd) ?? '11:00:00',
         price: updated.price,
         cleaning_price: updated.cleaning_price,
         electricity_and_water_payment: updated.electricity_and_water_payment,
@@ -519,8 +527,10 @@ async function handleBookingSubmit(result) {
       name: d.name,
       phone: d.phone,
       roomNumber: d.roomNumber,
-      check_in: checkIn,
-      check_out: checkOut,
+      check_in: extractDate(checkIn),
+      check_out: extractDate(checkOut),
+      check_in_time: extractTime(checkIn) ?? '13:00:00',
+      check_out_time: extractTime(checkOut) ?? '11:00:00',
       price: d.price,
       cleaning_price: d.cleaning_price,
       electricity_and_water_payment: d.electricity_and_water_payment,
@@ -623,8 +633,10 @@ const loadEvents = async () => {
           name: b.name,
           phone: b.phone,
           roomNumber: b.roomNumber,
-          check_in: checkIn,
-          check_out: checkOut,
+          check_in: extractDate(checkIn),
+          check_out: extractDate(checkOut),
+          check_in_time: extractTime(checkIn) ?? '13:00:00',
+          check_out_time: extractTime(checkOut) ?? '11:00:00',
           price: b.price,
           cleaning_price: b.cleaning_price,
           electricity_and_water_payment: b.electricity_and_water_payment,
@@ -664,8 +676,10 @@ const loadEventsAll = async () => {
         name: b.name,
         phone: b.phone,
         roomNumber: b.roomNumber,
-        check_in: checkIn,
-        check_out: checkOut,
+        check_in: extractDate(checkIn),
+        check_out: extractDate(checkOut),
+        check_in_time: extractTime(checkIn) ?? '13:00:00',
+        check_out_time: extractTime(checkOut) ?? '11:00:00',
         price: b.price,
         cleaning_price: b.cleaning_price,
         electricity_and_water_payment: b.electricity_and_water_payment,
