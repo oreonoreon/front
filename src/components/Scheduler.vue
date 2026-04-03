@@ -42,7 +42,7 @@ const showBookingForm = ref(false);
 const bookingDraft = ref(null);
 
 // Управление показом колонки Description
-const showDescription = ref(true);
+const showDescription = ref(false);
 
 // Мгновенно скрываем/показываем колонку через класс на корневом элементе,
 // а полный перерасчёт ширины откладываем.
@@ -60,8 +60,8 @@ function toggleDescription() {
 
 const chevronSvg = `
     <svg xmlns="http://www.w3.org/2000/svg"
-         viewBox="0 0 24 24" width="18" height="18" fill="none"
-         stroke="#4f8cff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
+         viewBox="0 0 24 24" width="20" height="20" fill="none"
+         stroke="#4f8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
          class="rowheader-chevron" data-chevron="1">
          
       <polyline points="6 8 12 16 18 8"/>
@@ -263,8 +263,7 @@ const config = reactive({
       html: `<span style="display:flex;align-items:center;gap:6px;">
         <span>Room number</span>${chevronSvg}
       </span>`,
-    },
-    { text: "Description", display: "description",  maxAutoWidth: 200 }
+    }
   ],
 
   crosshairType: "Full",
@@ -727,12 +726,41 @@ onMounted(async () => {
   transition: transform .15s ease;
   transform: rotate(90deg);
   cursor: pointer;
-  padding: 8px;
+  padding: 4px;
+  min-width: 20px;
+  min-height: 20px;
+  box-sizing: content-box;
+  border-radius: 4px;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Расширяем кликабельную область вокруг шеврона */
+:deep(.rowheader-chevron::after) {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+}
+
+:deep(.rowheader-chevron:hover) {
+  background: rgba(79, 140, 255, 0.12);
 }
 
 /* Когда колонка скрыта — повернуть шеврон */
 :deep(.desc-hidden .rowheader-chevron) {
   transform: rotate(-90deg);
+}
+
+/* Первая колонка заголовка — не обрезать шеврон */
+:deep(.scheduler_default_rowheadercolheader:first-child) {
+  overflow: visible !important;
+}
+:deep(.scheduler_default_rowheadercol:first-child) {
+  overflow: visible !important;
 }
 
 /* Мгновенное скрытие второй колонки заголовков строк и её хедера */
