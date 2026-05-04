@@ -355,6 +355,11 @@ function openEditForm(event) {
     adult: t.adult ?? '',
     children: t.children ?? '',
     reservationDescription: t.reservationDescription ?? '',
+    reservation_info: t.reservation_info ?? {
+      deposit: '',
+      deposit_currency: 'USD',
+      prepayment: '',
+    },
   };
   showBookingForm.value = true;
 }
@@ -428,6 +433,11 @@ config.onTimeRangeSelected = async (args) => {
     adult: '1',
     children: '0',
     reservationDescription: '',
+    reservation_info: {
+      deposit: '',
+      deposit_currency: 'USD',
+      prepayment: '',
+    },
   };
   showBookingForm.value = true;
 };
@@ -461,6 +471,11 @@ async function handleBookingSubmit(result) {
     children: parseInt(result.children || 0),
     phone: result.phone,
     reservationDescription: result.reservationDescription,
+    reservation_info: {
+      deposit:          parseInt(result.reservation_info?.deposit || 0),
+      deposit_currency: result.reservation_info?.deposit_currency ?? '',
+      prepayment:       parseInt(result.reservation_info?.prepayment || 0),
+    },
   };
 
   if (isEditMode.value && editingEvent.value) {
@@ -468,9 +483,6 @@ async function handleBookingSubmit(result) {
     try {
       const updated = await updateBooking(id, payload);
 
-      //старая версия добавления 11 часов, теперь вынесенная в функцию для переиспользования
-      // const newStart = new DayPilot.Date(updated.check_in).addHours(11);
-      // const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
 
       // Новая версия с функцией addElevenHoursDP для добавления 11 часов
       const newStart = addElevenHoursDP(updated.check_in);
@@ -497,6 +509,7 @@ async function handleBookingSubmit(result) {
         days: updated.days,
         priceForOneNight: updated.price_for_night,
         reservationDescription: updated.reservationDescription,
+        reservation_info: updated.reservation_info ?? null,
       };
       schedulerRef.value?.control.events.update(ev);
       schedulerRef.value?.control.message("Изменения сохранены");
@@ -538,6 +551,7 @@ async function handleBookingSubmit(result) {
       days: d.days,
       priceForOneNight: d.price_for_night,
       reservationDescription: d.reservationDescription,
+      reservation_info: d.reservation_info ?? null,
     }
   });
 

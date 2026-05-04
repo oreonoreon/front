@@ -184,6 +184,44 @@
               ></textarea>
             </div>
 
+            <!-- ── Reservation info ── -->
+            <div class="section-title">Reservation info</div>
+
+            <div class="double">
+              <div class="form-row">
+                <label for="deposit">Deposit</label>
+                <input
+                    id="deposit"
+                    v-model="form.reservation_info.deposit"
+                    inputmode="numeric"
+                    @blur="digitsOrEmptyNested('reservation_info', 'deposit')"
+                    placeholder="0"
+                />
+              </div>
+              <div class="form-row">
+                <label for="deposit_currency">Deposit currency</label>
+                <input
+                    id="deposit_currency"
+                    v-model="form.reservation_info.deposit_currency"
+                    placeholder="USD"
+                    autocomplete="off"
+                />
+              </div>
+            </div>
+
+            <div class="double">
+              <div class="form-row">
+                <label for="prepayment">Prepayment</label>
+                <input
+                    id="prepayment"
+                    v-model="form.reservation_info.prepayment"
+                    inputmode="numeric"
+                    @blur="digitsOrEmptyNested('reservation_info', 'prepayment')"
+                    placeholder="0"
+                />
+              </div>
+            </div>
+
             <div class="form-info">
               <p class="hint">
                 В "Description" описывем всё что небходимо знать для заселения: предоплата 00000 бат оплачено, комиссия агента, имя агента, оплата при заезде, гость от собственника, депозит 300$ или 30000 руб переводом, гость от собственника, HomeExchange гость должен оплатить 2000 бат, имена гостей собственников если собственник не дал их контакты, возраст детей если есть, переезд в другие квартиры, детская кроватка или стульчик, оплачено через Букинг, оплачено через Аренби.
@@ -258,6 +296,11 @@ const form = reactive({
   adult: '',
   children: '',
   reservationDescription: '',
+  reservation_info: {
+    deposit: '',
+    deposit_currency: 'USD',
+    prepayment: '',
+  },
 });
 
 // Расширенные ошибки по каждому полю
@@ -297,6 +340,10 @@ watch(
       form.adult = v.adult === undefined || v.adult === null ? '' : String(v.adult);
       form.children = v.children === undefined || v.children === null ? '' : String(v.children);
       form.reservationDescription = v.reservationDescription ?? '';
+      const ri = v.reservation_info ?? {};
+      form.reservation_info.deposit          = ri.deposit          === undefined || ri.deposit          === null ? '' : String(ri.deposit);
+      form.reservation_info.deposit_currency = ri.deposit_currency || 'USD';
+      form.reservation_info.prepayment       = ri.prepayment       === undefined || ri.prepayment       === null ? '' : String(ri.prepayment);
       clearErrors();
       nextTick(() => firstInputRef.value?.focus());
     },
@@ -362,6 +409,15 @@ function digitsOrEmpty(field) {
   if (v === '') return;
   if (!/^\d+$/.test(v)) {
     form[field] = '';
+  }
+}
+
+// Тоже самое для вложенных объектов (например reservation_info)
+function digitsOrEmptyNested(obj, field) {
+  const v = form[obj][field];
+  if (v === '') return;
+  if (!/^\d+$/.test(String(v))) {
+    form[obj][field] = '';
   }
 }
 
@@ -448,6 +504,11 @@ async function submit() {
       adult: form.adult,
       children: form.children,
       reservationDescription: form.reservationDescription,
+      reservation_info: {
+        deposit:          form.reservation_info.deposit === '' ? 0 : Number(form.reservation_info.deposit),
+        deposit_currency: form.reservation_info.deposit_currency,
+        prepayment:       form.reservation_info.prepayment === '' ? 0 : Number(form.reservation_info.prepayment),
+      },
     });
     close();
   } finally {
@@ -587,6 +648,16 @@ textarea {
   font-size: 11px;
   color: #6b7280;
   margin: 4px 0 0;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4f8cff;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 6px 0 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e4e7ed;
 }
 .err {
   color: #d9343a;
