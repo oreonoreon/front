@@ -46,7 +46,7 @@
                 </div>
                 <div class="card-top">
                   <span class="card-room">{{ b.roomNumber }}</span>
-                  <span class="card-time">{{ formatTimeFromDate(b.check_in) }}</span>
+                  <span class="card-time">{{ formatTimeFromDate(b.reservation_info.actual_check_in) }}</span>
                 </div>
                 <div class="card-guest">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -62,9 +62,10 @@
                   <span v-if="b.children">👶 {{ b.children }}</span>
                 </div>
                 <div v-if="b.reservationDescription" class="card-desc">{{ b.reservationDescription }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
-                  <span class="price-tag booking-price">{{ b.price }}฿</span>
-                  <span v-if="b.price_for_night" class="price-night">{{ b.price_for_night }}฿/ночь</span>
+                  <span class="price-tag booking-price">{{ b.reservation_info?.payment_on_checkin ?? 0 }}฿</span>
+                  <span class="price-deposit">Депозит: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
                 </div>
               </div>
             </template>
@@ -82,7 +83,7 @@
                 </div>
                 <div class="card-top">
                   <span class="card-room">{{ b.roomNumber }}</span>
-                  <span class="card-time">{{ formatTimeFromDate(b.check_out) }}</span>
+                  <span class="card-time">{{ formatTimeFromDate(b.reservation_info.actual_check_out) }}</span>
                 </div>
                 <div class="card-guest">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -94,9 +95,9 @@
                   <span class="stay-days">({{ b.days }} н.)</span>
                 </div>
                 <div v-if="b.reservationDescription" class="card-desc">{{ b.reservationDescription }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
-                  <span class="price-tag booking-price">{{ b.price }}฿</span>
-                  <span v-if="b.price_for_night" class="price-night">{{ b.price_for_night }}฿/ночь</span>
+                  <span class="price-deposit">Депозит: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
                 </div>
               </div>
             </template>
@@ -769,6 +770,16 @@ function extractTime(isoStr) {
   font-weight: 500;
 }
 
+.price-deposit {
+  margin-left: auto;
+  font-size: 12px;
+  color: #344054;
+  font-weight: 600;
+  background: #f2f4f7;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
 /* ─── Карточка уборки ─── */
 .cleaning-card {
   border: 1px solid #e4e7ec;
@@ -829,7 +840,13 @@ function extractTime(isoStr) {
   font-size: 12.5px;
   color: #98a2b3;
   line-height: 1.4;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.card-electricity {
+  font-size: 12.5px;
+  color: #667085;
+  margin-bottom: 4px;
 }
 
 .card-bottom {

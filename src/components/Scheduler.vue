@@ -658,6 +658,7 @@ const loadEvents = async () => {
           days: b.days,
           priceForOneNight: b.price_for_night,
           reservationDescription: b.reservationDescription,
+          reservation_info: b.reservation_info ?? null,
         }
       });
     });
@@ -701,6 +702,7 @@ const loadEventsAll = async () => {
         days: b.days,
         priceForOneNight: b.price_for_night,
         reservationDescription: b.reservationDescription,
+        reservation_info: b.reservation_info ?? null,
       }
     });
   });
