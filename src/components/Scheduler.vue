@@ -107,7 +107,7 @@ const isEditMode = ref(false);
 const editingEvent = ref(null);
 
 const start = new DayPilot.Date("2023-11-01");
-const end = new DayPilot.Date("2026-12-31");
+const end = new DayPilot.Date("2027-12-31");
 const msPerDay = 24 * 60 * 60 * 1000;
 const days = Math.round((new Date(end.value) - new Date(start.value)) / msPerDay) + 1;
 
@@ -675,7 +675,24 @@ const loadEventsAll = async () => {
     )
   }
 
-  const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
+  let data;
+  try {
+    const response = await api.post('/calendar/rall', { room_numbers: rooms });
+    data = response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      router.push('/login');
+      return;
+    }
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    return;
+  }
   const bookings = data.bookings || data;
   bookings.forEach(b => {
     const checkIn = addElevenHoursDP(b.check_in);
@@ -692,8 +709,8 @@ const loadEventsAll = async () => {
         roomNumber: b.roomNumber,
         check_in: extractDate(checkIn),
         check_out: extractDate(checkOut),
-        check_in_time: extractTime(checkIn) ?? '13:00:00',
-        check_out_time: extractTime(checkOut) ?? '11:00:00',
+        check_in_time: extractTime(checkIn),
+        check_out_time: extractTime(checkOut),
         price: b.price,
         cleaning_price: b.cleaning_price,
         electricity_and_water_payment: b.electricity_and_water_payment,
