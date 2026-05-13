@@ -9,6 +9,12 @@
       <button class="nav-btn" @click="shiftDays(1)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+      <input
+        type="date"
+        class="nav-date-input"
+        :value="startDate"
+        @change="jumpToDate($event.target.value)"
+      />
     </div>
 
     <!-- Колонки дней -->
@@ -433,6 +439,11 @@ function goToToday() {
   })
 }
 
+function jumpToDate(dateStr) {
+  if (!dateStr) return
+  startDate.value = dateStr
+}
+
 // --- Утилиты ---
 
 function todayString() {
@@ -555,6 +566,24 @@ function extractTime(isoStr) {
 .today-btn:hover {
   filter: brightness(1.08);
   background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+}
+
+.nav-date-input {
+  padding: 7px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.nav-date-input:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
 }
 
 /* ─── Контейнер дней ─── */
