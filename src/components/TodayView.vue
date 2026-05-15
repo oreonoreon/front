@@ -46,6 +46,8 @@
                 v-for="b in checkInsByDate[date]"
                 :key="'ci-' + b.id"
                 class="booking-card checkin"
+                style="cursor:pointer"
+                @click="openEditReservationInfo(b, 'checkin', date)"
               >
                 <div class="card-badge-row">
                   <span class="card-badge badge-checkin">CHECK-IN</span>
@@ -83,6 +85,8 @@
                 v-for="b in checkOutsByDate[date]"
                 :key="'co-' + b.id"
                 class="booking-card checkout"
+                style="cursor:pointer"
+                @click="openEditReservationInfo(b, 'checkout', date)"
               >
                 <div class="card-badge-row">
                   <span class="card-badge badge-checkout">CHECK-OUT</span>
@@ -235,6 +239,60 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Модалка редактирования reservation_info (check-in / check-out) -->
+    <Teleport to="body">
+      <div v-if="riModal.visible" class="modal-overlay" @click.self="closeRiModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>{{ riModal.type === 'checkin' ? 'Редактирование Check-in' : 'Редактирование Check-out' }}</h3>
+            <button class="modal-close" @click="closeRiModal">&times;</button>
+          </div>
+          <form class="modal-body" @submit.prevent="submitRi">
+
+            <!-- Дата -->
+            <div class="form-group">
+              <label>{{ riModal.type === 'checkin' ? 'Дата заезда (actual)' : 'Дата выезда (actual)' }}</label>
+              <input v-model="riForm.date" type="date" class="form-input" />
+            </div>
+
+            <!-- Время -->
+            <div class="form-group">
+              <label>{{ riModal.type === 'checkin' ? 'Время заезда (actual)' : 'Время выезда (actual)' }}</label>
+              <vue-timepicker
+                v-model="riForm.time_obj"
+                format="HH:mm"
+                :hour-range="[[0,23]]"
+                :minute-interval="1"
+                close-on-complete
+                input-class="time-picker-input"
+              />
+            </div>
+
+            <!-- Депозит -->
+            <div v-if="riModal.type !== 'checkout'" class="form-row">
+              <div class="form-group">
+                <label>Депозит</label>
+                <input v-model.number="riForm.deposit" type="number" min="0" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Валюта депозита</label>
+                <input v-model="riForm.deposit_currency" type="text" class="form-input" placeholder="USD" />
+              </div>
+            </div>
+
+            <div v-if="riModal.error" class="form-error">{{ riModal.error }}</div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-cancel" @click="closeRiModal">Отмена</button>
+              <button type="submit" class="btn btn-save" :disabled="riModal.saving">
+                {{ riModal.saving ? 'Сохранение...' : 'Сохранить' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -330,6 +388,79 @@ async function submitEdit() {
     editModal.error = e.response?.data || e.message || 'Ошибка сохранения'
   } finally {
     editModal.saving = false
+  }
+}
+
+// ─── Модалка редактирования reservation_info ───
+const riModal = reactive({
+  visible: false,
+  saving: false,
+  error: '',
+  type: 'checkin',   // 'checkin' | 'checkout'
+  refreshDate: '',   // дата колонки для обновления после сохранения
+})
+
+const riForm = reactive({
+  ri_id: null,
+  full_ri: null,     // исходный объект reservation_info целиком
+  date: '',
+  time_obj: { HH: '12', mm: '00' },
+  deposit: 0,
+  deposit_currency: 'USD',
+})
+
+function openEditReservationInfo(b, type, columnDate) {
+  const ri = b.reservation_info
+  if (!ri?.id) return
+
+  riModal.type = type
+  riModal.refreshDate = columnDate
+  riModal.error = ''
+  riModal.saving = false
+
+  riForm.ri_id = ri.id
+  riForm.full_ri = { ...ri }
+  riForm.deposit = ri.deposit ?? 0
+  riForm.deposit_currency = ri.deposit_currency || 'USD'
+
+  const isoStr = type === 'checkin' ? ri.actual_check_in : ri.actual_check_out
+  const m = String(isoStr || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
+  riForm.date = m ? m[1] : ''
+  riForm.time_obj = m ? { HH: m[2], mm: m[3] } : { HH: '12', mm: '00' }
+
+  riModal.visible = true
+}
+
+function closeRiModal() {
+  riModal.visible = false
+}
+
+async function submitRi() {
+  riModal.saving = true
+  riModal.error = ''
+  try {
+    const HH = riForm.time_obj?.HH ?? '12'
+    const mm = riForm.time_obj?.mm ?? '00'
+    const isoTime = `${riForm.date}T${HH}:${mm}:00Z`
+
+    const payload = { ...riForm.full_ri }
+    payload.deposit = riForm.deposit
+    payload.deposit_currency = riForm.deposit_currency
+    if (riModal.type === 'checkin') {
+      payload.actual_check_in = isoTime
+    } else {
+      payload.actual_check_out = isoTime
+    }
+
+    await api.patch(`/calendar/reservation-info/${riForm.ri_id}`, payload)
+
+    closeRiModal()
+    fetchedDates.delete(riModal.refreshDate)
+    fetchDayData(riModal.refreshDate)
+  } catch (e) {
+    riModal.error = e.response?.data || e.message || 'Ошибка сохранения'
+  } finally {
+    riModal.saving = false
   }
 }
 
@@ -969,8 +1100,17 @@ function extractTime(isoStr) {
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: visible;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .modal-header {
@@ -1149,6 +1289,6 @@ function extractTime(isoStr) {
   box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
 }
 :deep(.vue__time-picker .dropdown) {
-  z-index: 5000;
+  z-index: 9999;
 }
 </style>
