@@ -5,7 +5,7 @@
       <button class="nav-btn" @click="shiftDays(-1)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <button class="nav-btn today-btn" @click="goToToday">Сегодня</button>
+      <button class="nav-btn today-btn" @click="goToToday">{{ t('today') }}</button>
       <button class="nav-btn" @click="shiftDays(1)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -41,7 +41,7 @@
           <template v-else>
             <!-- Check-in -->
             <template v-if="checkInsByDate[date]?.length">
-              <div class="section-label section-checkin">▶ Check-in</div>
+              <div class="section-label section-checkin">{{ t('sectionCheckin') }}</div>
               <div
                 v-for="b in checkInsByDate[date]"
                 :key="'ci-' + b.id"
@@ -63,7 +63,7 @@
                 <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
                 <div class="card-stay">
                   {{ formatDateShort(b.check_in) }} → {{ formatDateShort(b.check_out) }}
-                  <span class="stay-days">({{ b.days }} н.)</span>
+                  <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
                 </div>
                 <div v-if="b.adult || b.children" class="card-guests-count">
                   <span v-if="b.adult">👤 {{ b.adult }}</span>
@@ -73,14 +73,14 @@
                 <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
                   <span class="price-tag booking-price">{{ b.reservation_info?.payment_on_checkin ?? 0 }}฿</span>
-                  <span class="price-deposit">Депозит: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
+                  <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
                 </div>
               </div>
             </template>
 
             <!-- Check-out -->
             <template v-if="checkOutsByDate[date]?.length">
-              <div class="section-label section-checkout">◀ Check-out</div>
+              <div class="section-label section-checkout">{{ t('sectionCheckout') }}</div>
               <div
                 v-for="b in checkOutsByDate[date]"
                 :key="'co-' + b.id"
@@ -102,19 +102,19 @@
                 <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
                 <div class="card-stay">
                   {{ formatDateShort(b.check_in) }} → {{ formatDateShort(b.check_out) }}
-                  <span class="stay-days">({{ b.days }} н.)</span>
+                  <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
                 </div>
                 <div v-if="b.reservationDescription" class="card-desc">{{ b.reservationDescription }}</div>
                 <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
-                  <span class="price-deposit">Депозит: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
+                  <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
                 </div>
               </div>
             </template>
 
             <!-- Уборки -->
             <template v-if="cleaningsByDate[date]?.length">
-              <div class="section-label section-cleaning">🧹 Уборки</div>
+              <div class="section-label section-cleaning">{{ t('sectionCleaning') }}</div>
               <div
                 v-for="c in cleaningsByDate[date]"
                 :key="'cl-' + c.id"
@@ -149,7 +149,7 @@
                     </span>
                   </div>
                   <span class="card-status" :class="c.paid ? 'status-paid' : 'status-unpaid'">
-                    {{ c.paid ? '✓ Оплачено' : 'Не оплачено' }}
+                    {{ c.paid ? t('paid') : t('unpaid') }}
                   </span>
                 </div>
               </div>
@@ -160,7 +160,7 @@
               v-if="!checkInsByDate[date]?.length && !checkOutsByDate[date]?.length && !cleaningsByDate[date]?.length"
               class="day-placeholder"
             >
-              <span class="empty-text">Нет событий</span>
+              <span class="empty-text">{{ t('noEvents') }}</span>
             </div>
           </template>
         </div>
@@ -172,23 +172,23 @@
       <div v-if="editModal.visible" class="modal-overlay" @click.self="closeEditModal">
         <div class="modal-card">
           <div class="modal-header">
-            <h3>Редактирование уборки</h3>
+            <h3>{{ t('editCleaning') }}</h3>
             <button class="modal-close" @click="closeEditModal">&times;</button>
           </div>
 
           <form class="modal-body" @submit.prevent="submitEdit">
             <div class="form-group">
-              <label>Комната</label>
+              <label>{{ t('room') }}</label>
               <input v-model="editForm.room" type="text" class="form-input" />
             </div>
 
             <div class="form-group">
-              <label>Дата</label>
+              <label>{{ t('date') }}</label>
               <input v-model="editForm.cleaning_date" type="date" class="form-input" />
             </div>
 
             <div class="form-group">
-              <label>Время</label>
+              <label>{{ t('time') }}</label>
               <vue-timepicker
                 v-model="editForm.cleaning_time_obj"
                 format="HH:mm"
@@ -200,22 +200,22 @@
             </div>
 
             <div class="form-group">
-              <label>Агент</label>
+              <label>{{ t('agent') }}</label>
               <input v-model="editForm.agent_name" type="text" class="form-input" />
             </div>
 
             <div class="form-group">
-              <label>Описание</label>
+              <label>{{ t('description') }}</label>
               <textarea v-model="editForm.description" class="form-input form-textarea" rows="3"></textarea>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label>Цена уборки (฿)</label>
+                <label>{{ t('cleaningPrice') }}</label>
                 <input v-model.number="editForm.cleaning_price" type="number" min="0" class="form-input" />
               </div>
               <div class="form-group">
-                <label>Прачечная (฿)</label>
+                <label>{{ t('laundryPrice') }}</label>
                 <input v-model.number="editForm.laundry_price" type="number" min="0" class="form-input" />
               </div>
             </div>
@@ -223,16 +223,16 @@
             <div class="form-group form-checkbox-group">
               <label class="checkbox-label">
                 <input v-model="editForm.paid" type="checkbox" />
-                Оплачено
+                {{ t('paidLabel') }}
               </label>
             </div>
 
             <div v-if="editModal.error" class="form-error">{{ editModal.error }}</div>
 
             <div class="modal-footer">
-              <button type="button" class="btn btn-cancel" @click="closeEditModal">Отмена</button>
+              <button type="button" class="btn btn-cancel" @click="closeEditModal">{{ t('cancel') }}</button>
               <button type="submit" class="btn btn-save" :disabled="editModal.saving">
-                {{ editModal.saving ? 'Сохранение...' : 'Сохранить' }}
+                {{ editModal.saving ? t('saving') : t('save') }}
               </button>
             </div>
           </form>
@@ -245,20 +245,20 @@
       <div v-if="riModal.visible" class="modal-overlay" @click.self="closeRiModal">
         <div class="modal-card">
           <div class="modal-header">
-            <h3>{{ riModal.type === 'checkin' ? 'Редактирование Check-in' : 'Редактирование Check-out' }}</h3>
+            <h3>{{ riModal.type === 'checkin' ? t('editCheckin') : t('editCheckout') }}</h3>
             <button class="modal-close" @click="closeRiModal">&times;</button>
           </div>
           <form class="modal-body" @submit.prevent="submitRi">
 
             <!-- Дата -->
             <div class="form-group">
-              <label>{{ riModal.type === 'checkin' ? 'Дата заезда (actual)' : 'Дата выезда (actual)' }}</label>
+              <label>{{ riModal.type === 'checkin' ? t('actualCheckinDate') : t('actualCheckoutDate') }}</label>
               <input v-model="riForm.date" type="date" class="form-input" />
             </div>
 
             <!-- Время -->
             <div class="form-group">
-              <label>{{ riModal.type === 'checkin' ? 'Время заезда (actual)' : 'Время выезда (actual)' }}</label>
+              <label>{{ riModal.type === 'checkin' ? t('actualCheckinTime') : t('actualCheckoutTime') }}</label>
               <vue-timepicker
                 v-model="riForm.time_obj"
                 format="HH:mm"
@@ -272,11 +272,11 @@
             <!-- Депозит -->
             <div v-if="riModal.type !== 'checkout'" class="form-row">
               <div class="form-group">
-                <label>Депозит</label>
+                <label>{{ t('depositLabel') }}</label>
                 <input v-model.number="riForm.deposit" type="number" min="0" class="form-input" />
               </div>
               <div class="form-group">
-                <label>Валюта депозита</label>
+                <label>{{ t('depositCurrency') }}</label>
                 <input v-model="riForm.deposit_currency" type="text" class="form-input" placeholder="USD" />
               </div>
             </div>
@@ -284,9 +284,9 @@
             <div v-if="riModal.error" class="form-error">{{ riModal.error }}</div>
 
             <div class="modal-footer">
-              <button type="button" class="btn btn-cancel" @click="closeRiModal">Отмена</button>
+              <button type="button" class="btn btn-cancel" @click="closeRiModal">{{ t('cancel') }}</button>
               <button type="submit" class="btn btn-save" :disabled="riModal.saving">
-                {{ riModal.saving ? 'Сохранение...' : 'Сохранить' }}
+                {{ riModal.saving ? t('saving') : t('save') }}
               </button>
             </div>
           </form>
@@ -301,6 +301,81 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import api from '../api.js'
 import VueTimepicker from 'vue3-timepicker'
 import 'vue3-timepicker/dist/VueTimepicker.css'
+
+// ─── Локализация ───
+const stored = localStorage.getItem('lang')
+const lang = ref(stored === 'en' ? 'en' : 'ru')
+
+const translations = {
+  ru: {
+    today: 'Сегодня',
+    sectionCheckin: '▶ Check-in',
+    sectionCheckout: '◀ Check-out',
+    sectionCleaning: '🧹 Уборки',
+    nights: 'н.',
+    deposit: 'Депозит',
+    paid: '✓ Оплачено',
+    unpaid: 'Не оплачено',
+    noEvents: 'Нет событий',
+    editCleaning: 'Редактирование уборки',
+    editCheckin: 'Редактирование Check-in',
+    editCheckout: 'Редактирование Check-out',
+    room: 'Комната',
+    date: 'Дата',
+    time: 'Время',
+    agent: 'Агент',
+    description: 'Описание',
+    cleaningPrice: 'Цена уборки (฿)',
+    laundryPrice: 'Прачечная (฿)',
+    paidLabel: 'Оплачено',
+    cancel: 'Отмена',
+    saving: 'Сохранение...',
+    save: 'Сохранить',
+    actualCheckinDate: 'Дата заезда (actual)',
+    actualCheckoutDate: 'Дата выезда (actual)',
+    actualCheckinTime: 'Время заезда (actual)',
+    actualCheckoutTime: 'Время выезда (actual)',
+    depositLabel: 'Депозит',
+    depositCurrency: 'Валюта депозита',
+    saveError: 'Ошибка сохранения',
+  },
+  en: {
+    today: 'Today',
+    sectionCheckin: '▶ Check-in',
+    sectionCheckout: '◀ Check-out',
+    sectionCleaning: '🧹 Cleaning',
+    nights: 'n.',
+    deposit: 'Deposit',
+    paid: '✓ Paid',
+    unpaid: 'Unpaid',
+    noEvents: 'No events',
+    editCleaning: 'Edit Cleaning',
+    editCheckin: 'Edit Check-in',
+    editCheckout: 'Edit Check-out',
+    room: 'Room',
+    date: 'Date',
+    time: 'Time',
+    agent: 'Agent',
+    description: 'Description',
+    cleaningPrice: 'Cleaning price (฿)',
+    laundryPrice: 'Laundry (฿)',
+    paidLabel: 'Paid',
+    cancel: 'Cancel',
+    saving: 'Saving...',
+    save: 'Save',
+    actualCheckinDate: 'Check-in date (actual)',
+    actualCheckoutDate: 'Check-out date (actual)',
+    actualCheckinTime: 'Check-in time (actual)',
+    actualCheckoutTime: 'Check-out time (actual)',
+    depositLabel: 'Deposit',
+    depositCurrency: 'Deposit currency',
+    saveError: 'Save error',
+  },
+}
+
+function t(key) {
+  return translations[lang.value]?.[key] ?? translations['ru'][key] ?? key
+}
 
 // ─── Модалка редактирования уборки ───
 const editModal = reactive({
@@ -385,7 +460,7 @@ async function submitEdit() {
       fetchDayData(date)
     })
   } catch (e) {
-    editModal.error = e.response?.data || e.message || 'Ошибка сохранения'
+    editModal.error = e.response?.data || e.message || t('saveError')
   } finally {
     editModal.saving = false
   }
@@ -458,7 +533,7 @@ async function submitRi() {
     fetchedDates.delete(riModal.refreshDate)
     fetchDayData(riModal.refreshDate)
   } catch (e) {
-    riModal.error = e.response?.data || e.message || 'Ошибка сохранения'
+    riModal.error = e.response?.data || e.message || t('saveError')
   } finally {
     riModal.saving = false
   }
@@ -594,7 +669,8 @@ function isToday(dateStr) {
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ru-RU', {
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  return d.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -603,7 +679,8 @@ function formatDate(dateStr) {
 
 function formatWeekday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
-  const name = d.toLocaleDateString('ru-RU', { weekday: 'long' })
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  const name = d.toLocaleDateString(locale, { weekday: 'long' })
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
@@ -617,7 +694,8 @@ function formatDateShort(isoDate) {
   const match = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (!match) return ''
   const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  return d.toLocaleDateString('ru-RU', {
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  return d.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short'
   })
