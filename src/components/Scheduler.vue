@@ -355,10 +355,14 @@ function openEditForm(event) {
     adult: t.adult ?? '',
     children: t.children ?? '',
     reservationDescription: t.reservationDescription ?? '',
-    reservation_info: t.reservation_info ?? {
-      deposit: '',
-      deposit_currency: 'USD',
-      prepayment: '',
+    reservation_info: {
+      deposit:          t.reservation_info?.deposit          ?? '',
+      deposit_currency: t.reservation_info?.deposit_currency ?? 'USD',
+      prepayment:       t.reservation_info?.prepayment       ?? '',
+      actual_check_in:      t.reservation_info?.actual_check_in  ? new DayPilot.Date(t.reservation_info.actual_check_in)  : null,
+      actual_check_in_time: t.reservation_info?.actual_check_in  ? (extractTime(new DayPilot.Date(t.reservation_info.actual_check_in)) ?? '13:00:00') : '13:00:00',
+      actual_check_out:     t.reservation_info?.actual_check_out ? new DayPilot.Date(t.reservation_info.actual_check_out) : null,
+      actual_check_out_time: t.reservation_info?.actual_check_out ? (extractTime(new DayPilot.Date(t.reservation_info.actual_check_out)) ?? '11:00:00') : '11:00:00',
     },
   };
   showBookingForm.value = true;
@@ -437,6 +441,10 @@ config.onTimeRangeSelected = async (args) => {
       deposit: '',
       deposit_currency: 'USD',
       prepayment: '',
+      actual_check_in: args.start,
+      actual_check_in_time: '13:00:00',
+      actual_check_out: args.end,
+      actual_check_out_time: '11:00:00',
     },
   };
   showBookingForm.value = true;
@@ -459,6 +467,15 @@ async function handleBookingSubmit(result) {
   const checkInWithTime  = applyTime(result.check_in,  result.check_in_time);
   const checkOutWithTime = applyTime(result.check_out, result.check_out_time);
 
+  const ri = result.reservation_info ?? {};
+
+  const actualCheckInWithTime  = ri.actual_check_in
+      ? applyTime(ri.actual_check_in,  ri.actual_check_in_time  || '13:00:00')
+      : null;
+  const actualCheckOutWithTime = ri.actual_check_out
+      ? applyTime(ri.actual_check_out, ri.actual_check_out_time || '11:00:00')
+      : null;
+
   const payload = {
     roomNumber: result.roomNumber,
     name: result.name,
@@ -472,9 +489,11 @@ async function handleBookingSubmit(result) {
     phone: result.phone,
     reservationDescription: result.reservationDescription,
     reservation_info: {
-      deposit:          parseInt(result.reservation_info?.deposit || 0),
-      deposit_currency: result.reservation_info?.deposit_currency ?? '',
-      prepayment:       parseInt(result.reservation_info?.prepayment || 0),
+      deposit:          parseInt(ri.deposit || 0),
+      deposit_currency: ri.deposit_currency ?? '',
+      prepayment:       parseInt(ri.prepayment || 0),
+      actual_check_in:  actualCheckInWithTime  ? actualCheckInWithTime.toString()  + 'Z' : null,
+      actual_check_out: actualCheckOutWithTime ? actualCheckOutWithTime.toString() + 'Z' : null,
     },
   };
 
