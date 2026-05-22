@@ -29,6 +29,7 @@
         <div class="day-header">
           <span class="day-weekday">{{ formatWeekday(date) }}</span>
           <span class="day-date">{{ formatDate(date) }}</span>
+          <button class="add-cleaning-btn" type="button" @click.stop="openCreateCleaning(date)" :title="t('createCleaning')">+</button>
         </div>
 
         <!-- Тело дня -->
@@ -172,7 +173,7 @@
       <div v-if="editModal.visible" class="modal-overlay" @click.self="closeEditModal">
         <div class="modal-card">
           <div class="modal-header">
-            <h3>{{ t('editCleaning') }}</h3>
+            <h3>{{ editModal.isCreate ? t('createCleaning') : t('editCleaning') }}</h3>
             <button class="modal-close" @click="closeEditModal">&times;</button>
           </div>
 
@@ -318,6 +319,7 @@ const translations = {
     unpaid: 'Не оплачено',
     noEvents: 'Нет событий',
     editCleaning: 'Редактирование уборки',
+    createCleaning: 'Новая уборка',
     editCheckin: 'Редактирование Check-in',
     editCheckout: 'Редактирование Check-out',
     room: 'Комната',
@@ -350,6 +352,7 @@ const translations = {
     unpaid: 'Unpaid',
     noEvents: 'No events',
     editCleaning: 'Edit Cleaning',
+    createCleaning: 'New Cleaning',
     editCheckin: 'Edit Check-in',
     editCheckout: 'Edit Check-out',
     room: 'Room',
@@ -382,6 +385,7 @@ const editModal = reactive({
   visible: false,
   saving: false,
   error: '',
+  isCreate: false,
   originalDate: '',  // дата дня, чтобы обновить список после сохранения
 })
 
@@ -399,6 +403,7 @@ const editForm = reactive({
 })
 
 function openEditCleaning(c) {
+  editModal.isCreate = false
   editForm.id = c.id
   editForm.room = c.room
 
@@ -425,6 +430,25 @@ function closeEditModal() {
   editModal.visible = false
 }
 
+function openCreateCleaning(date) {
+  editModal.isCreate = true
+  editForm.id = null
+  editForm.room = ''
+  editForm.cleaning_date = date
+  editForm.cleaning_time_obj = { HH: '12', mm: '00' }
+  editForm.agent_name = ''
+  editForm.description = ''
+  editForm.cleaning_price = 0
+  editForm.laundry_price = 0
+  editForm.paid = false
+  editForm.reservation_id = null
+
+  editModal.originalDate = date
+  editModal.error = ''
+  editModal.saving = false
+  editModal.visible = true
+}
+
 async function submitEdit() {
   editModal.saving = true
   editModal.error = ''
@@ -447,7 +471,11 @@ async function submitEdit() {
       payload.reservation_id = editForm.reservation_id
     }
 
-    await api.patch(`/calendar/cleaning/${editForm.id}`, payload)
+    if (editModal.isCreate) {
+      await api.post('/calendar/cleaning', payload)
+    } else {
+      await api.patch(`/calendar/cleaning/${editForm.id}`, payload)
+    }
 
     closeEditModal()
 
@@ -827,6 +855,31 @@ function extractTime(isoStr) {
   text-align: center;
   border-bottom: 1px solid #f2f4f7;
   background: #fafbfc;
+  position: relative;
+}
+
+.add-cleaning-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #4f8cff, #6157ff);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+.add-cleaning-btn:hover {
+  opacity: 0.85;
 }
 
 .day-weekday {
