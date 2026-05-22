@@ -231,12 +231,43 @@
             <div v-if="editModal.error" class="form-error">{{ editModal.error }}</div>
 
             <div class="modal-footer">
-              <button type="button" class="btn btn-cancel" @click="closeEditModal">{{ t('cancel') }}</button>
-              <button type="submit" class="btn btn-save" :disabled="editModal.saving">
-                {{ editModal.saving ? t('saving') : t('save') }}
+              <button
+                v-if="!editModal.isCreate"
+                type="button"
+                class="btn btn-delete"
+                :disabled="editModal.saving || editModal.deleting"
+                @click="confirmDeleteCleaning"
+              >
+                {{ editModal.deleting ? t('deleting') : t('delete') }}
               </button>
+              <div class="footer-right">
+                <button type="button" class="btn btn-cancel" @click="closeEditModal">{{ t('cancel') }}</button>
+                <button type="submit" class="btn btn-save" :disabled="editModal.saving || editModal.deleting">
+                  {{ editModal.saving ? t('saving') : t('save') }}
+                </button>
+              </div>
             </div>
           </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Подтверждение удаления уборки -->
+    <Teleport to="body">
+      <div v-if="deleteConfirm.visible" class="modal-overlay" @click.self="cancelDelete">
+        <div class="modal-card confirm-card">
+          <div class="modal-header">
+            <h3>{{ t('confirmDeleteTitle') }}</h3>
+          </div>
+          <div class="modal-body confirm-body">
+            <p>{{ t('confirmDeleteText') }}</p>
+          </div>
+          <div class="modal-footer">
+            <div class="footer-right">
+              <button type="button" class="btn btn-cancel" @click="cancelDelete">{{ t('cancel') }}</button>
+              <button type="button" class="btn btn-delete" @click="deleteCleaning">{{ t('confirmDeleteOk') }}</button>
+            </div>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -340,6 +371,12 @@ const translations = {
     depositLabel: 'Депозит',
     depositCurrency: 'Валюта депозита',
     saveError: 'Ошибка сохранения',
+    delete: 'Удалить',
+    deleting: 'Удаление...',
+    confirmDeleteTitle: 'Удалить уборку?',
+    confirmDeleteText: 'Это действие нельзя будет отменить.',
+    confirmDeleteOk: 'Удалить',
+    deleteError: 'Ошибка удаления',
   },
   en: {
     today: 'Today',
@@ -373,6 +410,12 @@ const translations = {
     depositLabel: 'Deposit',
     depositCurrency: 'Deposit currency',
     saveError: 'Save error',
+    delete: 'Delete',
+    deleting: 'Deleting...',
+    confirmDeleteTitle: 'Delete cleaning?',
+    confirmDeleteText: 'This action cannot be undone.',
+    confirmDeleteOk: 'Delete',
+    deleteError: 'Delete error',
   },
 }
 
@@ -384,9 +427,10 @@ function t(key) {
 const editModal = reactive({
   visible: false,
   saving: false,
+  deleting: false,
   error: '',
   isCreate: false,
-  originalDate: '',  // дата дня, чтобы обновить список после сохранения
+  originalDate: '',
 })
 
 const editForm = reactive({
@@ -491,6 +535,34 @@ async function submitEdit() {
     editModal.error = e.response?.data || e.message || t('saveError')
   } finally {
     editModal.saving = false
+  }
+}
+
+// confirm-диалог для удаления уборки
+const deleteConfirm = reactive({ visible: false })
+
+function confirmDeleteCleaning() {
+  deleteConfirm.visible = true
+}
+
+function cancelDelete() {
+  deleteConfirm.visible = false
+}
+
+async function deleteCleaning() {
+  deleteConfirm.visible = false
+  editModal.deleting = true
+  editModal.error = ''
+  try {
+    await api.delete(`/calendar/cleaning/${editForm.id}`)
+    const dateToRefresh = editModal.originalDate
+    closeEditModal()
+    fetchedDates.delete(dateToRefresh)
+    fetchDayData(dateToRefresh)
+  } catch (e) {
+    editModal.error = e.response?.data || e.message || t('deleteError')
+  } finally {
+    editModal.deleting = false
   }
 }
 
@@ -1353,8 +1425,15 @@ function extractTime(isoStr) {
 .modal-footer {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 8px;
+}
+
+.footer-right {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .btn {
@@ -1388,6 +1467,34 @@ function extractTime(isoStr) {
 .btn-save:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-delete {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.btn-delete:hover {
+  background: #fecdca;
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-card {
+  max-width: 360px;
+}
+
+.confirm-body {
+  font-size: 14px;
+  color: #344054;
+  padding: 12px 24px 16px;
+}
+
+.confirm-card .modal-footer {
+  padding: 12px 24px 20px;
 }
 
 @keyframes spin {
