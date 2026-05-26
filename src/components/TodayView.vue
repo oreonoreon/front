@@ -59,7 +59,7 @@
                 </div>
                 <div class="card-guest">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {{ b.name }}
+                  {{ getName(b.name) }}
                 </div>
                 <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
                 <div class="card-stay">
@@ -98,7 +98,7 @@
                 </div>
                 <div class="card-guest">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {{ b.name }}
+                  {{ getName(b.name) }}
                 </div>
                 <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
                 <div class="card-stay">
@@ -453,6 +453,33 @@ function getDescription(text) {
   return translationCache[text] || text
 }
 
+// ─── Перевод имён через Lingva Translate ───
+const nameCache = reactive({})
+
+async function translateName(text) {
+  if (!text) return
+  if (nameCache[text] !== undefined) return
+  nameCache[text] = null
+  try {
+    const res = await fetch(
+      `https://lingva.ml/api/v1/ru/en/${encodeURIComponent(text)}`
+    )
+    const data = await res.json()
+    nameCache[text] = data.translation || text
+  } catch {
+    nameCache[text] = text
+  }
+}
+
+function getName(text) {
+  if (!text) return ''
+  if (lang.value !== 'en') return text
+  if (nameCache[text] === undefined || nameCache[text] === null) {
+    translateName(text)
+  }
+  return nameCache[text] || text
+}
+
 
 const editModal = reactive({
   visible: false,
@@ -753,6 +780,7 @@ async function fetchDayData(date) {
     if (lang.value === 'en') {
       ;[...checkIns, ...checkOuts].forEach(b => {
         if (b.reservationDescription) translateToEn(b.reservationDescription)
+        if (b.name) translateName(b.name)
       })
     }
   } catch (e) {
