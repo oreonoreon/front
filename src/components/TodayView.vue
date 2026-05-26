@@ -70,7 +70,7 @@
                   <span v-if="b.adult">👤 {{ b.adult }}</span>
                   <span v-if="b.children">👶 {{ b.children }}</span>
                 </div>
-                <div v-if="b.reservationDescription" class="card-desc">{{ b.reservationDescription }}</div>
+                <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
                 <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
                   <span class="price-tag booking-price">{{ b.reservation_info?.payment_on_checkin ?? 0 }}฿</span>
@@ -105,7 +105,7 @@
                   {{ formatDateShort(b.check_in) }} → {{ formatDateShort(b.check_out) }}
                   <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
                 </div>
-                <div v-if="b.reservationDescription" class="card-desc">{{ b.reservationDescription }}</div>
+                <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
                 <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
                 <div class="card-bottom">
                   <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
@@ -423,7 +423,37 @@ function t(key) {
   return translations[lang.value]?.[key] ?? translations['ru'][key] ?? key
 }
 
-// ─── Модалка редактирования уборки ───
+// ─── Авто-перевод через Google Translate (неофициальный) ───
+const translationCache = reactive({})
+
+async function translateToEn(text) {
+  if (!text) return
+  if (translationCache[text] !== undefined) return
+  translationCache[text] = null
+  try {
+    const url =
+      `https://translate.googleapis.com/translate_a/single` +
+      `?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
+    const data = await res.json()
+    // Ответ: [[["translated","original",...],...],...]
+    const translated = data[0]?.map(chunk => chunk[0]).join('') || text
+    translationCache[text] = translated
+  } catch {
+    translationCache[text] = text
+  }
+}
+
+function getDescription(text) {
+  if (!text) return ''
+  if (lang.value !== 'en') return text
+  if (translationCache[text] === undefined || translationCache[text] === null) {
+    translateToEn(text)
+  }
+  return translationCache[text] || text
+}
+
+
 const editModal = reactive({
   visible: false,
   saving: false,
@@ -718,6 +748,13 @@ async function fetchDayData(date) {
     // Check-out
     const checkOuts = checkOutsRes.status === 'fulfilled' ? (checkOutsRes.value.data || []) : []
     checkOutsByDate.value = { ...checkOutsByDate.value, [date]: checkOuts }
+
+    // Предварительно запустить переводы описаний если язык en
+    if (lang.value === 'en') {
+      ;[...checkIns, ...checkOuts].forEach(b => {
+        if (b.reservationDescription) translateToEn(b.reservationDescription)
+      })
+    }
   } catch (e) {
     console.error(`Ошибка загрузки данных за ${date}:`, e)
     cleaningsByDate.value = { ...cleaningsByDate.value, [date]: [] }
