@@ -453,7 +453,7 @@ function getDescription(text) {
   return translationCache[text] || text
 }
 
-// ─── Перевод имён через Lingva Translate ───
+// ─── Перевод имён через Google Translate (неофициальный) ───
 const nameCache = reactive({})
 
 async function translateName(text) {
@@ -461,11 +461,13 @@ async function translateName(text) {
   if (nameCache[text] !== undefined) return
   nameCache[text] = null
   try {
-    const res = await fetch(
-      `https://lingva.ml/api/v1/ru/en/${encodeURIComponent(text)}`
-    )
+    const url =
+      `https://translate.googleapis.com/translate_a/single` +
+      `?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
     const data = await res.json()
-    nameCache[text] = data.translation || text
+    const translated = data[0]?.map(chunk => chunk[0]).join('') || text
+    nameCache[text] = translated
   } catch {
     nameCache[text] = text
   }
@@ -718,6 +720,17 @@ onMounted(() => window.addEventListener('resize', onResize))
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   clearTimeout(resizeTimer)
+  clearInterval(autoRefreshTimer)
+})
+
+let autoRefreshTimer = null
+onMounted(() => {
+  autoRefreshTimer = setInterval(() => {
+    visibleDates.value.forEach((date) => {
+      fetchedDates.delete(date)
+      fetchDayData(date)
+    })
+  }, 5 * 60 * 1000)
 })
 
 const startDate = ref(todayString())
