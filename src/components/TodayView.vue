@@ -1065,6 +1065,7 @@ function extractTime(isoStr) {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .day-placeholder {

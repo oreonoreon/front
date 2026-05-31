@@ -15,10 +15,25 @@ const showNavbar = computed(() => !route.meta.hideNavbar)
 </script>
 
 <style>
-html, body {
-  overscroll-behavior-y: auto;
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  overscroll-behavior-y: auto; /* разрешаем нативный PTR */
+}
+
+body {
   height: 100%;
   margin: 0;
+  padding: 0;
+}
+
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .app-content {
@@ -26,5 +41,6 @@ html, body {
   width: 100vw;
   min-width: 0;
   overflow-x: auto;
+  overscroll-behavior-y: contain; /* внутренний скролл не мешает PTR */
 }
 </style>
