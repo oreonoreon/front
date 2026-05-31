@@ -861,7 +861,6 @@ onMounted(async () => {
   min-width: 0;
   overflow: hidden;
   overflow-x: auto;
-  overscroll-behavior-y: contain;
 }
 .info-panel {
   position: relative;
