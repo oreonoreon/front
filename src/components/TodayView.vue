@@ -71,7 +71,7 @@
                   <span v-if="b.children">👶 {{ b.children }}</span>
                 </div>
                 <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
-                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ getElectricityPaymentText(b.electricity_and_water_payment) }}</div>
                 <div class="card-bottom">
                   <span class="price-tag booking-price">{{ b.reservation_info?.payment_on_checkin ?? 0 }}฿</span>
                   <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
@@ -106,7 +106,7 @@
                   <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
                 </div>
                 <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
-                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ b.electricity_and_water_payment }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ getElectricityPaymentText(b.electricity_and_water_payment) }}</div>
                 <div class="card-bottom">
                   <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
                 </div>
@@ -480,6 +480,14 @@ function getName(text) {
     translateName(text)
   }
   return nameCache[text] || text
+}
+
+function getElectricityPaymentText(value) {
+  if (!value) return ''
+  if (lang.value !== 'en') return value
+  if (value === 'счётчики') return 'Water and Electricity meters'
+  if (!isNaN(value) && String(value).trim() !== '') return 'NO Water and Electricity meters'
+  return value
 }
 
 
@@ -1286,6 +1294,7 @@ function extractTime(isoStr) {
 
 .card-electricity {
   font-size: 12.5px;
+  font-weight: 700;
   color: #667085;
   margin-bottom: 4px;
 }
