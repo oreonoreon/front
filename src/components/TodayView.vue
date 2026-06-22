@@ -1137,7 +1137,7 @@ function extractTime(isoStr) {
 }
 
 .booking-card.checkout {
-  border-left: 4px solid #f97066;
+  border-left: 4px solid #ffb347;
 }
 
 .card-badge-row {
@@ -1246,7 +1246,7 @@ function extractTime(isoStr) {
 }
 
 .cleaning-card.paid {
-  border-left-color: #32d583;
+  border-left-color: #4f8cff;
 }
 
 .card-top {
