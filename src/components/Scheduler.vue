@@ -171,6 +171,15 @@ const headerMenu = new DayPilot.Menu({
             endDate
         );
       }
+    },
+    {
+      text: "ReportAll",
+      onClick: async (args) => {
+
+        await generateReportAll(
+
+        );
+      }
     }
   ]
 });
@@ -296,6 +305,45 @@ const generateReport = async (room_number, start, end) => {
     const fileName = contentDisposition
         ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
         : `report_${room_number}.xlsx`;
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    schedulerRef.value?.control.message("Отчёт успешно загружен");
+  } catch (error) {
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      await DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      await DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+const generateReportAll = async () => {
+  try {
+    const response = await api.post('/calendar/totalpriceReportXlsx', {}, {
+      responseType: 'blob'
+    });
+
+    // ВАЖНО: явно указываем MIME-тип из заголовков ответа
+    const contentType = response.headers['content-type'] ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `report_TotalPrice.xlsx`;
 
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
