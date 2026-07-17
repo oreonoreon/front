@@ -29,7 +29,22 @@
         <div class="day-header">
           <span class="day-weekday">{{ formatWeekday(date) }}</span>
           <span class="day-date">{{ formatDate(date) }}</span>
-          <button class="add-cleaning-btn" type="button" @click.stop="openCreateCleaning(date)" :title="t('createCleaning')">+</button>
+          <div class="add-cleaning-menu" @click.stop>
+            <button
+              class="add-cleaning-btn"
+              type="button"
+              @click="toggleAddMenu(date)"
+              :title="t('createCleaning')"
+            >+</button>
+            <div v-if="openAddMenuDate === date" class="add-cleaning-dropdown">
+              <button type="button" class="add-cleaning-dropdown-item" @click="onNewCleaningClick(date)">
+                {{ t('createCleaning') }}
+              </button>
+              <button type="button" class="add-cleaning-dropdown-item" @click="onCopyDayClick(date)">
+                {{ t('copyDay') }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Тело дня -->
@@ -325,6 +340,11 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Toast: скопировано в буфер -->
+    <transition name="fade">
+      <div v-if="copyToast" class="copy-toast">{{ t('copiedToClipboard') }}</div>
+    </transition>
   </div>
 </template>
 
@@ -353,6 +373,8 @@ const translations = {
     createCleaning: 'Новая уборка',
     editCheckin: 'Редактирование Check-in',
     editCheckout: 'Редактирование Check-out',
+    copyDay: 'Копировать день',
+    copiedToClipboard: 'Скопировано в буфер обмена',
     room: 'Комната',
     date: 'Дата',
     time: 'Время',
@@ -392,6 +414,8 @@ const translations = {
     createCleaning: 'New Cleaning',
     editCheckin: 'Edit Check-in',
     editCheckout: 'Edit Check-out',
+    copyDay: 'Copy day',
+    copiedToClipboard: 'Copied to clipboard',
     room: 'Room',
     date: 'Date',
     time: 'Time',
@@ -539,6 +563,115 @@ function openEditCleaning(c) {
 
 function closeEditModal() {
   editModal.visible = false
+}
+
+const openAddMenuDate = ref(null)
+
+function toggleAddMenu(date) {
+  openAddMenuDate.value = openAddMenuDate.value === date ? null : date
+}
+
+function closeAddMenu() {
+  openAddMenuDate.value = null
+}
+
+function onNewCleaningClick(date) {
+  closeAddMenu()
+  openCreateCleaning(date)
+}
+
+const copyToast = ref(false)
+let copyToastTimer = null
+
+function showCopyToast() {
+  copyToast.value = true
+  clearTimeout(copyToastTimer)
+  copyToastTimer = setTimeout(() => { copyToast.value = false }, 2000)
+}
+
+function buildDayInfoText(date) {
+  const lines = []
+  lines.push(`${formatWeekday(date)}, ${formatDate(date)}`)
+
+  const checkIns = checkInsByDate.value[date] || []
+  if (checkIns.length) {
+    lines.push('', `${t('sectionCheckin')}`)
+    checkIns.forEach((b) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${b.roomNumber}`)
+      const time = formatTimeFromDate(b.reservation_info?.actual_check_in)
+      if (time) lines.push(`${t('time')}: ${time}`)
+      lines.push(`${getName(b.name)}`)
+      if (b.phone) lines.push(`📞 ${b.phone}`)
+      lines.push(`${formatDateShort(b.check_in)} → ${formatDateShort(b.check_out)} (${b.days} ${t('nights')})`)
+      if (b.adult || b.children) {
+        const parts = []
+        if (b.adult) parts.push(`👤 ${b.adult}`)
+        if (b.children) parts.push(`👶 ${b.children}`)
+        lines.push(parts.join(' '))
+      }
+      if (b.reservationDescription) lines.push(getDescription(b.reservationDescription))
+      if (b.electricity_and_water_payment) lines.push(`⚡ ${getElectricityPaymentText(b.electricity_and_water_payment)}`)
+      lines.push(`${b.reservation_info?.payment_on_checkin ?? 0}฿ | ${t('deposit')}: ${b.reservation_info?.deposit ?? 0} ${b.reservation_info?.deposit_currency || 'USD'}`)
+    })
+  }
+
+  const checkOuts = checkOutsByDate.value[date] || []
+  if (checkOuts.length) {
+    lines.push('', `${t('sectionCheckout')}`)
+    checkOuts.forEach((b) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${b.roomNumber}`)
+      const time = formatTimeFromDate(b.reservation_info?.actual_check_out)
+      if (time) lines.push(`${t('time')}: ${time}`)
+      lines.push(`${getName(b.name)}`)
+      if (b.phone) lines.push(`📞 ${b.phone}`)
+      lines.push(`${formatDateShort(b.check_in)} → ${formatDateShort(b.check_out)} (${b.days} ${t('nights')})`)
+      if (b.reservationDescription) lines.push(getDescription(b.reservationDescription))
+      if (b.electricity_and_water_payment) lines.push(`⚡ ${getElectricityPaymentText(b.electricity_and_water_payment)}`)
+      lines.push(`${t('deposit')}: ${b.reservation_info?.deposit ?? 0} ${b.reservation_info?.deposit_currency || 'USD'}`)
+    })
+  }
+
+  const cleanings = cleaningsByDate.value[date] || []
+  if (cleanings.length) {
+    lines.push('', `${t('sectionCleaning')}`)
+    cleanings.forEach((c) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${c.room} | ${formatTime(c.cleaning_time)}`)
+      if (c.agent_name) lines.push(`${c.agent_name}`)
+      if (c.description) lines.push(c.description)
+      const prices = []
+      if (c.cleaning_price) prices.push(`🧹 ${c.cleaning_price}฿`)
+      if (c.laundry_price) prices.push(`👕 ${c.laundry_price}฿`)
+      if (prices.length) lines.push(prices.join(' '))
+      lines.push(c.paid ? t('paid') : t('unpaid'))
+    })
+  }
+
+  if (!checkIns.length && !checkOuts.length && !cleanings.length) {
+    lines.push('', t('noEvents'))
+  }
+
+  return lines.join('\n')
+}
+
+async function onCopyDayClick(date) {
+  closeAddMenu()
+  const text = buildDayInfoText(date)
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+  showCopyToast()
 }
 
 function openCreateCleaning(date) {
@@ -725,9 +858,12 @@ function onResize() {
 }
 
 onMounted(() => window.addEventListener('resize', onResize))
+onMounted(() => document.addEventListener('click', closeAddMenu))
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('click', closeAddMenu)
   clearTimeout(resizeTimer)
+  clearTimeout(copyToastTimer)
   clearInterval(autoRefreshTimer)
 })
 
@@ -1016,11 +1152,14 @@ function extractTime(isoStr) {
   position: relative;
 }
 
-.add-cleaning-btn {
+.add-cleaning-menu {
   position: absolute;
   top: 50%;
   right: 12px;
   transform: translateY(-50%);
+}
+
+.add-cleaning-btn {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -1038,6 +1177,58 @@ function extractTime(isoStr) {
 }
 .add-cleaning-btn:hover {
   opacity: 0.85;
+}
+
+.add-cleaning-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 20;
+}
+
+.add-cleaning-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #1f2937;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.add-cleaning-dropdown-item:hover {
+  background: #f2f4f7;
+}
+
+.copy-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.25);
+  z-index: 100;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.25s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 
 .day-weekday {
@@ -1287,7 +1478,7 @@ function extractTime(isoStr) {
 
 .card-desc {
   font-size: 12.5px;
-  color: #98a2b3;
+  color: #000; /* было #98a2b3 */
   line-height: 1.4;
   margin-bottom: 4px;
 }
