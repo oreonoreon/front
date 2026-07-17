@@ -674,11 +674,17 @@ const updateBooking = async (id,booking) => {
 const loadResources = async () => {
   try {
     const { data } = await api.get('/calendar/r');
-    config.resources = data.apartments.map(apt => ({
+    const mapped = data.apartments.map(apt => ({
       name: apt.room_number,
       id: apt.room_number,
       description: apt.description || "",
     }));
+    // Апартаменты с номером, начинающимся на "Serenity", должны идти последними
+    const isSerenity = (r) => String(r.name ?? '').startsWith('Serenity');
+    config.resources = [
+      ...mapped.filter(r => !isSerenity(r)),
+      ...mapped.filter(isSerenity),
+    ];
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
