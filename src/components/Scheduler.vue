@@ -20,6 +20,7 @@
       @update:modelValue="v => showBookingForm = v"
       @submit="handleBookingSubmit"
       @cancel="handleBookingCancel"
+      @statuses-changed="handleStatusesChanged"
   />
 </template>
 
@@ -56,6 +57,16 @@ function toggleDescription() {
 
   // Отложенный «настоящий» апдейт колонок (пересчёт ширины левой панели)
   deferRowHeaderUpdate();
+}
+
+// Резервные цвета для статусов, у которых не задан цвет в справочнике status_types
+const STATUS_COLOR_FALLBACK = {
+  paid_to_owner: '#22a06b',
+  guest_checked_in: '#4f8cff',
+  guest_paid_full: '#f5a623',
+};
+function statusColorFallback(code) {
+  return STATUS_COLOR_FALLBACK[code] || '#888888';
 }
 
 const chevronSvg = `
@@ -258,6 +269,22 @@ const config = reactive({
       }
     });
 
+    // Бейджи статусов брони (цветные точки внизу-слева карточки)
+    const statuses = args.data.tag?.statuses || [];
+    statuses.forEach((s, idx) => {
+      const color = s.status_color || statusColorFallback(s.status_code);
+      areas.push({
+        left: 4 + idx * 12,
+        bottom: 4,
+        width: 10,
+        height: 10,
+        visibility: "Visible",
+        cssClass: "dp-status-dot",
+        html: `<span style="display:block;width:10px;height:10px;border-radius:50%;background:${color};border:1px solid rgba(255,255,255,0.8);"></span>`,
+        toolTip: s.status_name,
+      });
+    });
+
     args.data.areas = areas;
   },
 
@@ -412,6 +439,7 @@ function openEditForm(event) {
       actual_check_out:     t.reservation_info?.actual_check_out ? new DayPilot.Date(t.reservation_info.actual_check_out) : null,
       actual_check_out_time: t.reservation_info?.actual_check_out ? (extractTime(new DayPilot.Date(t.reservation_info.actual_check_out)) ?? '11:00:00') : '11:00:00',
     },
+    statuses: t.statuses ?? [],
   };
   showBookingForm.value = true;
 }
@@ -494,6 +522,7 @@ config.onTimeRangeSelected = async (args) => {
       actual_check_out: args.end,
       actual_check_out_time: '11:00:00',
     },
+    statuses: [],
   };
   showBookingForm.value = true;
 };
@@ -577,6 +606,7 @@ async function handleBookingSubmit(result) {
         priceForOneNight: updated.price_for_night,
         reservationDescription: updated.reservationDescription,
         reservation_info: updated.reservation_info ?? null,
+        statuses: ev.data.tag?.statuses ?? [],
       };
       schedulerRef.value?.control.events.update(ev);
       schedulerRef.value?.control.message("Изменения сохранены");
@@ -619,6 +649,7 @@ async function handleBookingSubmit(result) {
       priceForOneNight: d.price_for_night,
       reservationDescription: d.reservationDescription,
       reservation_info: d.reservation_info ?? null,
+      statuses: d.statuses ?? [],
     }
   });
 
@@ -632,6 +663,15 @@ function handleBookingCancel() {
     isEditMode.value = false;
     editingEvent.value = null;
   }
+}
+
+// Обрабатывает переключение статуса брони из BookingFormOverlay: обновляет tag открытого события
+// на календаре, чтобы бейджи статусов сразу отобразили актуальное состояние.
+function handleStatusesChanged({ reservationId, statuses }) {
+  if (!editingEvent.value || editingEvent.value.data.id !== reservationId) return;
+  const ev = editingEvent.value;
+  ev.data.tag = { ...ev.data.tag, statuses };
+  schedulerRef.value?.control.events.update(ev);
 }
 
 const createBooking = async (booking) => {
@@ -732,6 +772,7 @@ const loadEvents = async () => {
           priceForOneNight: b.price_for_night,
           reservationDescription: b.reservationDescription,
           reservation_info: b.reservation_info ?? null,
+          statuses: b.statuses ?? [],
         }
       });
     });
@@ -793,6 +834,7 @@ const loadEventsAll = async () => {
         priceForOneNight: b.price_for_night,
         reservationDescription: b.reservationDescription,
         reservation_info: b.reservation_info ?? null,
+        statuses: b.statuses ?? [],
       }
     });
   });

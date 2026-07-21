@@ -265,6 +265,28 @@
                 В "Description" описывем всё что небходимо знать для заселения: предоплата 00000 бат оплачено, комиссия агента, имя агента, оплата при заезде, гость от собственника, депозит 300$ или 30000 руб переводом, гость от собственника, HomeExchange гость должен оплатить 2000 бат, имена гостей собственников если собственник не дал их контакты, возраст детей если есть, переезд в другие квартиры, детская кроватка или стульчик, оплачено через Букинг, оплачено через Аренби.
               </p>
             </div>
+
+            <!-- ── Statuses (доступно только для существующей брони) ── -->
+            <template v-if="isEdit && form.id">
+              <div class="section-title">Statuses</div>
+              <div class="statuses-row">
+                <label
+                    v-for="st in statusTypes"
+                    :key="st.id"
+                    class="status-checkbox"
+                    :class="{ disabled: statusLoading }"
+                >
+                  <input
+                      type="checkbox"
+                      :checked="activeStatusTypeIds.has(st.id)"
+                      :disabled="statusLoading"
+                      @change="toggleStatus(st.id)"
+                  />
+                  {{ st.name }}
+                </label>
+                <p v-if="!statusTypes.length" class="hint">Статусы не найдены</p>
+              </div>
+            </template>
           </div>
 
           <div class="buttons">
@@ -285,6 +307,7 @@ import { DayPilot } from '@oreonoreon/calendar';
 import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref, computed } from 'vue';
 import VueTimepicker from 'vue3-timepicker';
 import 'vue3-timepicker/dist/VueTimepicker.css';
+import api from '../api.js';
 
 /* ── Computed-обёртки для vue3-timepicker (HH:mm формат) ── */
 const checkInTimeObj = computed({
@@ -341,7 +364,39 @@ const props = defineProps({
   isEdit: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:modelValue', 'submit', 'cancel']);
+const emit = defineEmits(['update:modelValue', 'submit', 'cancel', 'statuses-changed']);
+
+/* ── Statuses ── */
+const statusTypes = ref([]);       // справочник всех активных типов статусов
+const currentStatuses = ref([]);   // активные статусы текущей брони (entities.ReservationStatus[])
+const statusLoading = ref(false);
+
+const activeStatusTypeIds = computed(() => new Set(currentStatuses.value.map(s => s.status_type_id)));
+
+async function loadStatusTypes() {
+  try {
+    const { data } = await api.get('/calendar/status-types');
+    statusTypes.value = data || [];
+  } catch (err) {
+    console.error('Failed to load status types:', err);
+  }
+}
+
+async function toggleStatus(statusTypeId) {
+  if (!props.isEdit || !form.id || statusLoading.value) return;
+  statusLoading.value = true;
+  try {
+    await api.post(`/calendar/reservations/${form.id}/statuses/${statusTypeId}`);
+    const { data } = await api.get(`/calendar/reservations/${form.id}/statuses`);
+    currentStatuses.value = data || [];
+    emit('statuses-changed', { reservationId: form.id, statuses: currentStatuses.value });
+  } catch (err) {
+    const msg = err.response?.data?.message || err.response?.data || err.message;
+    await DayPilot.Modal.alert(`Ошибка изменения статуса: ${msg}`);
+  } finally {
+    statusLoading.value = false;
+  }
+}
 
 const form = reactive({
   id: null,
@@ -414,6 +469,7 @@ watch(
       form.reservation_info.actual_check_in_time  = ri.actual_check_in_time  ?? '13:00:00';
       form.reservation_info.actual_check_out = ri.actual_check_out ? new DayPilot.Date(ri.actual_check_out) : null;
       form.reservation_info.actual_check_out_time = ri.actual_check_out_time ?? '11:00:00';
+      currentStatuses.value = v.statuses ?? [];
       clearErrors();
       nextTick(() => firstInputRef.value?.focus());
     },
@@ -434,6 +490,7 @@ watch(
 
 onMounted(() => {
   if (props.modelValue) lockBodyScroll();
+  loadStatusTypes();
 });
 onBeforeUnmount(() => {
   unlockBodyScroll();
@@ -741,6 +798,34 @@ textarea {
   color: #d9343a;
   font-size: 12px;
   margin: 2px 0 0;
+}
+.statuses-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+.status-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+.status-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.status-checkbox.disabled {
+  opacity: .6;
+  cursor: default;
+}
+.status-checkbox.disabled input[type="checkbox"] {
+  cursor: default;
 }
 .buttons {
   position: sticky;
