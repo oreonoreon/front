@@ -10,6 +10,23 @@
           {{key}} : {{value}}
         </li>
       </ul>
+
+      <div class="statuses-section" v-if="statusTypes.length">
+        <div class="statuses-title">Statuses</div>
+        <div class="statuses-row">
+          <button
+              v-for="st in statusTypes"
+              :key="st.id"
+              type="button"
+              class="status-btn"
+              :class="{ active: activeStatusTypeIds.has(st.id), loading: statusLoading }"
+              :disabled="statusLoading"
+              @click="toggleGuestStatus(st.id)"
+          >
+            {{ st.name }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -20,7 +37,6 @@
       @update:modelValue="v => showBookingForm = v"
       @submit="handleBookingSubmit"
       @cancel="handleBookingCancel"
-      @statuses-changed="handleStatusesChanged"
   />
 </template>
 
@@ -29,7 +45,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
-import {ref, reactive, onMounted, watch} from "vue";
+import {ref, reactive, onMounted, watch, computed} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
 import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
@@ -38,6 +54,24 @@ import "../styles/schedulerColumnSelection.css";
 
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
+
+// Справочник типов статусов и состояние загрузки для кнопок в info-panel
+const statusTypes = ref([]);
+const statusLoading = ref(false);
+const activeStatusTypeIds = computed(() => {
+  const statuses = selectedGuest.value?.tag?.statuses || [];
+  return new Set(statuses.map(s => s.status_type_id));
+});
+
+async function loadStatusTypes() {
+  try {
+    const { data } = await api.get('/calendar/status-types');
+    statusTypes.value = data || [];
+  } catch (err) {
+    console.error('Failed to load status types:', err);
+  }
+}
+
 
 const showBookingForm = ref(false);
 const bookingDraft = ref(null);
@@ -665,13 +699,33 @@ function handleBookingCancel() {
   }
 }
 
-// Обрабатывает переключение статуса брони из BookingFormOverlay: обновляет tag открытого события
-// на календаре, чтобы бейджи статусов сразу отобразили актуальное состояние.
-function handleStatusesChanged({ reservationId, statuses }) {
-  if (!editingEvent.value || editingEvent.value.data.id !== reservationId) return;
-  const ev = editingEvent.value;
-  ev.data.tag = { ...ev.data.tag, statuses };
-  schedulerRef.value?.control.events.update(ev);
+// Обрабатывает переключение статуса брони прямо из info-panel: обновляет tag события
+// на календаре и данные выбранного гостя, чтобы бейджи статусов сразу отобразили актуальное состояние.
+function applyStatusesToReservation(reservationId, statuses) {
+  const ev = schedulerRef.value?.control.events.find(reservationId);
+  if (ev) {
+    ev.data.tag = { ...ev.data.tag, statuses };
+    schedulerRef.value?.control.events.update(ev);
+  }
+  if (selectedGuest.value?.id === reservationId) {
+    selectedGuest.value = { ...selectedGuest.value, tag: { ...selectedGuest.value.tag, statuses } };
+  }
+}
+
+async function toggleGuestStatus(statusTypeId) {
+  const reservationId = selectedGuest.value?.id;
+  if (!reservationId || statusLoading.value) return;
+  statusLoading.value = true;
+  try {
+    await api.post(`/calendar/reservations/${reservationId}/statuses/${statusTypeId}`);
+    const { data } = await api.get(`/calendar/reservations/${reservationId}/statuses`);
+    applyStatusesToReservation(reservationId, data || []);
+  } catch (err) {
+    const msg = err.response?.data?.message || err.response?.data || err.message;
+    await DayPilot.Modal.alert(`Ошибка изменения статуса: ${msg}`);
+  } finally {
+    statusLoading.value = false;
+  }
 }
 
 const createBooking = async (booking) => {
@@ -848,6 +902,7 @@ onMounted(async () => {
 
   await loadResources();
   await loadEventsAll();
+  await loadStatusTypes();
 
   // Делегируем клик по шеврону
   schedulerRef.value?.$el?.addEventListener("click", (e) => {
@@ -993,6 +1048,47 @@ onMounted(async () => {
 }
 .list-item:last-child {
   border-bottom: none;
+}
+.statuses-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e4e7ed;
+}
+.statuses-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 10px;
+}
+.statuses-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.status-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: #fff;
+  background: #d9343a; /* выключен — красный */
+  transition: background .15s, opacity .15s, filter .15s;
+  font-family: inherit;
+}
+.status-btn.active {
+  background: #22a06b; /* включён — зелёный */
+}
+.status-btn:disabled,
+.status-btn.loading {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.status-btn:not(:disabled):hover {
+  filter: brightness(1.08);
 }
 :deep(.scheduler_default_event_inner) {
   background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(52, 221, 221) 100%) !important;
