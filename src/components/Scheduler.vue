@@ -5,11 +5,93 @@
     </div>
     <div class="info-panel" v-if="selectedGuest">
       <button class="close-btn" @click="selectedGuest = null">×</button>
-      <ul class="list">
-        <li class="list-item" v-for="(value,key) in selectedGuest.tag" :key="key">
-          {{key}} : {{value}}
-        </li>
-      </ul>
+      <button class="copy-btn" type="button" @click="copyGuestInfo">
+        {{ copyLabel }}
+      </button>
+
+      <div class="guest-card">
+        <div class="guest-header">
+          <div class="guest-name">{{ selectedGuest.tag?.name }}</div>
+          <span v-if="selectedGuest.tag?.phone" class="guest-phone">
+            📞 {{ selectedGuest.tag.phone }}
+          </span>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">Проживание:</div>
+          <div class="info-row">
+            <span class="info-label">Апартаменты</span>
+            <span class="info-value">{{ selectedGuest.tag?.roomNumber }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Заезд</span>
+            <span class="info-value">{{ selectedGuest.tag?.check_in }} {{ selectedGuest.tag?.check_in_time }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Выезд</span>
+            <span class="info-value">{{ selectedGuest.tag?.check_out }} {{ selectedGuest.tag?.check_out_time }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Ночей</span>
+            <span class="info-value">{{ selectedGuest.tag?.days }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Взрослые / Дети</span>
+            <span class="info-value">{{ selectedGuest.tag?.adult }} / {{ selectedGuest.tag?.children }}</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">Оплата:</div>
+          <div class="info-row">
+            <span class="info-label">Цена</span>
+            <span class="info-value">{{ selectedGuest.tag?.price }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Уборка</span>
+            <span class="info-value">{{ selectedGuest.tag?.cleaning_price }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Электро/вода</span>
+            <span class="info-value">{{ selectedGuest.tag?.electricity_and_water_payment }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Цена за ночь</span>
+            <span class="info-value">{{ selectedGuest.tag?.priceForOneNight }}</span>
+          </div>
+        </div>
+
+        <div class="info-section" v-if="selectedGuest.tag?.reservation_info">
+          <div class="info-section-title">Депозит и предоплата:</div>
+          <div class="info-row">
+            <span class="info-label">Депозит</span>
+            <span class="info-value">
+              {{ selectedGuest.tag.reservation_info.deposit }} {{ selectedGuest.tag.reservation_info.deposit_currency }}
+            </span>
+          </div>
+          <div class="info-row" >
+            <span class="info-label">Предоплата</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.prepayment }}</span>
+          </div>
+          <div class="info-row" >
+            <span class="info-label">Оплата при заезде</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.payment_on_checkin }}</span>
+          </div>
+          <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_in">
+            <span class="info-label">Фактический заезд</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_in }}</span>
+          </div>
+          <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_out">
+            <span class="info-label">Фактический выезд</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_out }}</span>
+          </div>
+        </div>
+
+        <div class="info-section" >
+          <div class="info-section-title">Описание:</div>
+          <p class="info-description">{{ selectedGuest.tag.reservationDescription }}</p>
+        </div>
+      </div>
 
       <div class="statuses-section" v-if="statusTypes.length">
         <div class="statuses-title">Statuses</div>
@@ -69,6 +151,33 @@ async function loadStatusTypes() {
     statusTypes.value = data || [];
   } catch (err) {
     console.error('Failed to load status types:', err);
+  }
+}
+
+// Копирование краткой информации о госте в буфер обмена
+const copyLabel = ref('Копировать');
+async function copyGuestInfo() {
+  const t = selectedGuest.value?.tag;
+  if (!t) return;
+
+  const text =
+      `name : ${t.name ?? ''}\n` +
+      `phone : ${t.phone ?? ''}\n` +
+      `roomNumber : ${t.roomNumber ?? ''}\n` +
+      `check_in : ${t.check_in ?? ''}\n` +
+      `check_out : ${t.check_out ?? ''}\n` +
+      `price : ${t.price ?? ''}\n` +
+      `adult : ${t.adult ?? ''}\n` +
+      `children : ${t.children ?? ''}`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    copyLabel.value = 'Скопировано!';
+  } catch (err) {
+    console.error('Failed to copy guest info:', err);
+    copyLabel.value = 'Ошибка копирования';
+  } finally {
+    setTimeout(() => { copyLabel.value = 'Копировать'; }, 1500);
   }
 }
 
@@ -1030,24 +1139,85 @@ onMounted(async () => {
   font-size: 20px;
   cursor: pointer;
 }
-.list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 44px;
+  background: #eef1f6;
+  color: #374151;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.copy-btn:hover {
+  background: #e2e7ef;
+}
+.guest-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 14px;
 }
-.list-item {
-  padding: 4px 0;
-  border-bottom: 1px solid #ececec;
-  line-height: 1.28;
+.guest-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
+}
+.guest-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+.guest-phone {
+  font-size: 13px;
+  color: #4f8cff;
+}
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 2px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px dashed #ececec;
+}
+.info-row:last-child {
+  border-bottom: none;
+}
+.info-label {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.info-value {
+  color: #1f2937;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+.info-description {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.4;
+  margin: 0;
   word-break: break-word;
   overflow-wrap: anywhere;
-}
-.list-item:last-child {
-  border-bottom: none;
 }
 .statuses-section {
   margin-top: 16px;
