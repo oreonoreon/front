@@ -18,83 +18,83 @@
         </div>
 
         <div class="info-section">
-          <div class="info-section-title">Проживание:</div>
+          <div class="info-section-title">{{ t('sectionAccommodation') }}</div>
           <div class="info-row">
-            <span class="info-label">Апартаменты</span>
+            <span class="info-label">{{ t('apartment') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.roomNumber }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Заезд</span>
+            <span class="info-label">{{ t('checkIn') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.check_in }} {{ selectedGuest.tag?.check_in_time }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Выезд</span>
+            <span class="info-label">{{ t('checkOut') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.check_out }} {{ selectedGuest.tag?.check_out_time }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Ночей</span>
+            <span class="info-label">{{ t('nights') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.days }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Взрослые / Дети</span>
+            <span class="info-label">{{ t('adultsChildren') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.adult }} / {{ selectedGuest.tag?.children }}</span>
           </div>
         </div>
 
         <div class="info-section">
-          <div class="info-section-title">Оплата:</div>
+          <div class="info-section-title">{{ t('sectionPayment') }}</div>
           <div class="info-row">
-            <span class="info-label">Цена</span>
+            <span class="info-label">{{ t('price') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.price }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Уборка</span>
+            <span class="info-label">{{ t('cleaning') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.cleaning_price }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Электро/вода</span>
+            <span class="info-label">{{ t('electricity') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.electricity_and_water_payment }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Цена за ночь</span>
+            <span class="info-label">{{ t('pricePerNight') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.priceForOneNight }}</span>
           </div>
         </div>
 
         <div class="info-section" v-if="selectedGuest.tag?.reservation_info">
-          <div class="info-section-title">Депозит и предоплата:</div>
+          <div class="info-section-title">{{ t('sectionDepositPrepayment') }}</div>
           <div class="info-row">
-            <span class="info-label">Депозит</span>
+            <span class="info-label">{{ t('deposit') }}</span>
             <span class="info-value">
               {{ selectedGuest.tag.reservation_info.deposit }} {{ selectedGuest.tag.reservation_info.deposit_currency }}
             </span>
           </div>
           <div class="info-row" >
-            <span class="info-label">Предоплата</span>
+            <span class="info-label">{{ t('prepayment') }}</span>
             <span class="info-value">{{ selectedGuest.tag.reservation_info.prepayment }}</span>
           </div>
           <div class="info-row" >
-            <span class="info-label">Оплата при заезде</span>
+            <span class="info-label">{{ t('paymentOnCheckin') }}</span>
             <span class="info-value">{{ selectedGuest.tag.reservation_info.payment_on_checkin }}</span>
           </div>
           <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_in">
-            <span class="info-label">Фактический заезд</span>
+            <span class="info-label">{{ t('actualCheckIn') }}</span>
             <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_in }}</span>
           </div>
           <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_out">
-            <span class="info-label">Фактический выезд</span>
+            <span class="info-label">{{ t('actualCheckOut') }}</span>
             <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_out }}</span>
           </div>
         </div>
 
         <div class="info-section" >
-          <div class="info-section-title">Описание:</div>
+          <div class="info-section-title">{{ t('sectionDescription') }}</div>
           <p class="info-description">{{ selectedGuest.tag.reservationDescription }}</p>
         </div>
       </div>
 
       <div class="statuses-section" v-if="statusTypes.length">
-        <div class="statuses-title">Statuses</div>
+        <div class="statuses-title">{{ t('statuses') }}</div>
         <div class="statuses-row">
           <button
               v-for="st in statusTypes"
@@ -134,6 +134,65 @@ import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSe
 
 import "../styles/schedulerColumnSelection.css";
 
+// ─── Локализация ───
+const stored = localStorage.getItem('lang')
+const lang = ref(stored === 'en' ? 'en' : 'ru')
+
+const translations = {
+  ru: {
+    sectionAccommodation: 'Проживание:',
+    apartment: 'Апартаменты',
+    checkIn: 'Заезд',
+    checkOut: 'Выезд',
+    nights: 'ночей',
+    adultsChildren: 'Взрослые / Дети',
+    sectionPayment: 'Оплата:',
+    price: 'Цена',
+    cleaning: 'Уборка',
+    electricity: 'Электро/вода',
+    pricePerNight: 'Цена за ночь',
+    sectionDepositPrepayment: 'Депозит и предоплата:',
+    deposit: 'Депозит',
+    prepayment: 'Предоплата',
+    paymentOnCheckin: 'Оплата при заезде',
+    actualCheckIn: 'Фактический заезд',
+    actualCheckOut: 'Фактический выезд',
+    sectionDescription: 'Описание:',
+    statuses: 'Статусы',
+    copy: 'Копировать',
+    copied: 'Скопировано!',
+    copyError: 'Ошибка копирования',
+  },
+  en: {
+    sectionAccommodation: 'Accommodation:',
+    apartment: 'Apartment',
+    checkIn: 'Check-in',
+    checkOut: 'Check-out',
+    nights: 'nights',
+    adultsChildren: 'Adults / Children',
+    sectionPayment: 'Payment:',
+    price: 'Price',
+    cleaning: 'Cleaning',
+    electricity: 'Electricity / Water',
+    pricePerNight: 'Price per night',
+    sectionDepositPrepayment: 'Deposit & Prepayment:',
+    deposit: 'Deposit',
+    prepayment: 'Prepayment',
+    paymentOnCheckin: 'Payment on check-in',
+    actualCheckIn: 'Actual check-in',
+    actualCheckOut: 'Actual check-out',
+    sectionDescription: 'Description:',
+    statuses: 'Statuses',
+    copy: 'Copy',
+    copied: 'Copied!',
+    copyError: 'Copy error',
+  },
+}
+
+function t(key) {
+  return translations[lang.value]?.[key] ?? translations['ru'][key] ?? key
+}
+
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
 
@@ -155,29 +214,35 @@ async function loadStatusTypes() {
 }
 
 // Копирование краткой информации о госте в буфер обмена
-const copyLabel = ref('Копировать');
+const copyStatus = ref('idle'); // 'idle', 'copied', 'error'
+const copyLabel = computed(() => {
+  if (copyStatus.value === 'copied') return t('copied');
+  if (copyStatus.value === 'error') return t('copyError');
+  return t('copy');
+});
+
 async function copyGuestInfo() {
-  const t = selectedGuest.value?.tag;
-  if (!t) return;
+  const tag = selectedGuest.value?.tag;
+  if (!tag) return;
 
   const text =
-      `name : ${t.name ?? ''}\n` +
-      `phone : ${t.phone ?? ''}\n` +
-      `roomNumber : ${t.roomNumber ?? ''}\n` +
-      `check_in : ${t.check_in ?? ''}\n` +
-      `check_out : ${t.check_out ?? ''}\n` +
-      `price : ${t.price ?? ''}\n` +
-      `adult : ${t.adult ?? ''}\n` +
-      `children : ${t.children ?? ''}`;
+      `name : ${tag.name ?? ''}\n` +
+      `phone : ${tag.phone ?? ''}\n` +
+      `roomNumber : ${tag.roomNumber ?? ''}\n` +
+      `check_in : ${tag.check_in ?? ''}\n` +
+      `check_out : ${tag.check_out ?? ''}\n` +
+      `price : ${tag.price ?? ''}\n` +
+      `adult : ${tag.adult ?? ''}\n` +
+      `children : ${tag.children ?? ''}`;
 
   try {
     await navigator.clipboard.writeText(text);
-    copyLabel.value = 'Скопировано!';
+    copyStatus.value = 'copied';
   } catch (err) {
     console.error('Failed to copy guest info:', err);
-    copyLabel.value = 'Ошибка копирования';
+    copyStatus.value = 'error';
   } finally {
-    setTimeout(() => { copyLabel.value = 'Копировать'; }, 1500);
+    setTimeout(() => { copyStatus.value = 'idle'; }, 1500);
   }
 }
 
