@@ -202,15 +202,6 @@ function toggleDescription() {
   deferRowHeaderUpdate();
 }
 
-// Резервные цвета для статусов, у которых не задан цвет в справочнике status_types
-const STATUS_COLOR_FALLBACK = {
-  paid_to_owner: '#22a06b',
-  guest_checked_in: '#4f8cff',
-  guest_paid_full: '#f5a623',
-};
-function statusColorFallback(code) {
-  return STATUS_COLOR_FALLBACK[code] || '#888888';
-}
 
 const chevronSvg = `
     <svg xmlns="http://www.w3.org/2000/svg"
@@ -412,21 +403,17 @@ const config = reactive({
       }
     });
 
-    // Бейджи статусов брони (цветные точки внизу-слева карточки)
+    // Цвет тела и полосы бронирования в зависимости от статусов брони:
+    // guest_checked_in -> зелёное тело карточки, paid_to_owner -> зелёная/красная полоса.
     const statuses = args.data.tag?.statuses || [];
-    statuses.forEach((s, idx) => {
-      const color = s.status_color || statusColorFallback(s.status_code);
-      areas.push({
-        left: 4 + idx * 12,
-        bottom: 4,
-        width: 10,
-        height: 10,
-        visibility: "Visible",
-        cssClass: "dp-status-dot",
-        html: `<span style="display:block;width:10px;height:10px;border-radius:50%;background:${color};border:1px solid rgba(255,255,255,0.8);"></span>`,
-        toolTip: s.status_name,
-      });
-    });
+    const isCheckedIn = statuses.some(s => s.status_code === 'guest_checked_in');
+    const isPaidToOwner = statuses.some(s => s.status_code === 'paid_to_owner');
+
+    const statusClasses = [
+      isCheckedIn ? 'evt-checked-in' : '',
+      isPaidToOwner ? 'evt-paid-to-owner' : 'evt-not-paid-to-owner',
+    ].filter(Boolean).join(' ');
+    args.data.cssClass = statusClasses;
 
     args.data.areas = areas;
   },
@@ -1262,5 +1249,16 @@ onMounted(async () => {
 }
 :deep(.scheduler_default_event_inner) {
   background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(52, 221, 221) 100%) !important;
+}
+/* guest_checked_in = true -> зелёное тело карточки бронирования */
+:deep(.evt-checked-in .scheduler_default_event_inner) {
+  background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(69, 221, 52) 100%) !important;
+}
+/* paid_to_owner = true -> зелёная полоса; иначе (false/нет статуса) -> красная */
+:deep(.evt-paid-to-owner .scheduler_default_event_bar_inner) {
+  background: rgb(69, 221, 52) !important;
+}
+:deep(.evt-not-paid-to-owner .scheduler_default_event_bar_inner) {
+  background: #d9343a !important;
 }
 </style>
