@@ -927,10 +927,12 @@ async function fetchDayData(date) {
 
     // Check-in
     const checkIns = checkInsRes.status === 'fulfilled' ? (checkInsRes.value.data || []) : []
+    checkIns.sort((a, b) => timeSortValue(a.reservation_info?.actual_check_in) - timeSortValue(b.reservation_info?.actual_check_in))
     checkInsByDate.value = { ...checkInsByDate.value, [date]: checkIns }
 
     // Check-out
     const checkOuts = checkOutsRes.status === 'fulfilled' ? (checkOutsRes.value.data || []) : []
+    checkOuts.sort((a, b) => timeSortValue(a.reservation_info?.actual_check_out) - timeSortValue(b.reservation_info?.actual_check_out))
     checkOutsByDate.value = { ...checkOutsByDate.value, [date]: checkOuts }
 
     // Предварительно запустить переводы описаний если язык en
@@ -1038,6 +1040,20 @@ function extractTime(isoStr) {
   const match = String(isoStr).match(/T(\d{2}):(\d{2})/)
   if (!match) return ''
   return `${match[1]}:${match[2]}`
+}
+
+/**
+ * Возвращает число минут от начала суток для сортировки карточек по времени.
+ * Если время не задано или равно 00:00 (т.е. реальное время не указано),
+ * запись уходит в конец списка.
+ */
+function timeSortValue(isoStr) {
+  const match = String(isoStr).match(/T(\d{2}):(\d{2})/)
+  if (!match) return Infinity
+  const hh = Number(match[1])
+  const mm = Number(match[2])
+  if (hh === 0 && mm === 0) return Infinity
+  return hh * 60 + mm
 }
 </script>
 
