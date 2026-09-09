@@ -5,11 +5,110 @@
     </div>
     <div class="info-panel" v-if="selectedGuest">
       <button class="close-btn" @click="selectedGuest = null">×</button>
-      <ul class="list">
-        <li class="list-item" v-for="(value,key) in selectedGuest.tag" :key="key">
-          {{key}} : {{value}}
-        </li>
-      </ul>
+      <button class="copy-btn" type="button" @click="copyGuestInfo">
+        {{ copyLabel }}
+      </button>
+
+      <div class="guest-card">
+        <div class="guest-header">
+          <div class="guest-name">{{ selectedGuest.tag?.name }}</div>
+          <span v-if="selectedGuest.tag?.phone" class="guest-phone">
+            📞 {{ selectedGuest.tag.phone }}
+          </span>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">{{ t('sectionAccommodation') }}</div>
+          <div class="info-row">
+            <span class="info-label">{{ t('apartment') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.roomNumber }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('checkIn') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.check_in }} {{ selectedGuest.tag?.check_in_time }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('checkOut') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.check_out }} {{ selectedGuest.tag?.check_out_time }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('nights') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.days }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('adultsChildren') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.adult }} / {{ selectedGuest.tag?.children }}</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">{{ t('sectionPayment') }}</div>
+          <div class="info-row">
+            <span class="info-label">{{ t('price') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.price }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('cleaning') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.cleaning_price }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('electricity') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.electricity_and_water_payment }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('pricePerNight') }}</span>
+            <span class="info-value">{{ selectedGuest.tag?.priceForOneNight }}</span>
+          </div>
+        </div>
+
+        <div class="info-section" v-if="selectedGuest.tag?.reservation_info">
+          <div class="info-section-title">{{ t('sectionDepositPrepayment') }}</div>
+          <div class="info-row">
+            <span class="info-label">{{ t('deposit') }}</span>
+            <span class="info-value">
+              {{ selectedGuest.tag.reservation_info.deposit }} {{ selectedGuest.tag.reservation_info.deposit_currency }}
+            </span>
+          </div>
+          <div class="info-row" >
+            <span class="info-label">{{ t('prepayment') }}</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.prepayment }}</span>
+          </div>
+          <div class="info-row" >
+            <span class="info-label">{{ t('paymentOnCheckin') }}</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.payment_on_checkin }}</span>
+          </div>
+          <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_in">
+            <span class="info-label">{{ t('actualCheckIn') }}</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_in }}</span>
+          </div>
+          <div class="info-row" v-if="selectedGuest.tag.reservation_info.actual_check_out">
+            <span class="info-label">{{ t('actualCheckOut') }}</span>
+            <span class="info-value">{{ selectedGuest.tag.reservation_info.actual_check_out }}</span>
+          </div>
+        </div>
+
+        <div class="info-section" >
+          <div class="info-section-title">{{ t('sectionDescription') }}</div>
+          <p class="info-description">{{ selectedGuest.tag.reservationDescription }}</p>
+        </div>
+      </div>
+
+      <div class="statuses-section" v-if="statusTypes.length">
+        <div class="statuses-title">{{ t('statuses') }}</div>
+        <div class="statuses-row">
+          <button
+              v-for="st in statusTypes"
+              :key="st.id"
+              type="button"
+              class="status-btn"
+              :class="{ active: activeStatusTypeIds.has(st.id), loading: statusLoading }"
+              :disabled="statusLoading"
+              @click="toggleGuestStatus(st.id)"
+          >
+            {{ st.name }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -28,15 +127,125 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
-import {ref, reactive, onMounted, watch} from "vue";
+import {ref, reactive, onMounted, watch, computed} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
 import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
 
 import "../styles/schedulerColumnSelection.css";
 
+// ─── Локализация ───
+const stored = localStorage.getItem('lang')
+const lang = ref(stored === 'en' ? 'en' : 'ru')
+
+const translations = {
+  ru: {
+    sectionAccommodation: 'Проживание:',
+    apartment: 'Апартаменты',
+    checkIn: 'Заезд',
+    checkOut: 'Выезд',
+    nights: 'ночей',
+    adultsChildren: 'Взрослые / Дети',
+    sectionPayment: 'Оплата:',
+    price: 'Цена',
+    cleaning: 'Уборка',
+    electricity: 'Электро/вода',
+    pricePerNight: 'Цена за ночь',
+    sectionDepositPrepayment: 'Депозит и предоплата:',
+    deposit: 'Депозит',
+    prepayment: 'Предоплата',
+    paymentOnCheckin: 'Оплата при заезде',
+    actualCheckIn: 'Фактический заезд',
+    actualCheckOut: 'Фактический выезд',
+    sectionDescription: 'Описание:',
+    statuses: 'Статусы',
+    copy: 'Копировать',
+    copied: 'Скопировано!',
+    copyError: 'Ошибка копирования',
+  },
+  en: {
+    sectionAccommodation: 'Accommodation:',
+    apartment: 'Apartment',
+    checkIn: 'Check-in',
+    checkOut: 'Check-out',
+    nights: 'nights',
+    adultsChildren: 'Adults / Children',
+    sectionPayment: 'Payment:',
+    price: 'Price',
+    cleaning: 'Cleaning',
+    electricity: 'Electricity / Water',
+    pricePerNight: 'Price per night',
+    sectionDepositPrepayment: 'Deposit & Prepayment:',
+    deposit: 'Deposit',
+    prepayment: 'Prepayment',
+    paymentOnCheckin: 'Payment on check-in',
+    actualCheckIn: 'Actual check-in',
+    actualCheckOut: 'Actual check-out',
+    sectionDescription: 'Description:',
+    statuses: 'Statuses',
+    copy: 'Copy',
+    copied: 'Copied!',
+    copyError: 'Copy error',
+  },
+}
+
+function t(key) {
+  return translations[lang.value]?.[key] ?? translations['ru'][key] ?? key
+}
+
 const schedulerRef = ref(null);
 const selectedGuest = ref(null);
+
+// Справочник типов статусов и состояние загрузки для кнопок в info-panel
+const statusTypes = ref([]);
+const statusLoading = ref(false);
+const activeStatusTypeIds = computed(() => {
+  const statuses = selectedGuest.value?.tag?.statuses || [];
+  return new Set(statuses.map(s => s.status_type_id));
+});
+
+async function loadStatusTypes() {
+  try {
+    const { data } = await api.get('/calendar/status-types');
+    statusTypes.value = data || [];
+  } catch (err) {
+    console.error('Failed to load status types:', err);
+  }
+}
+
+// Копирование краткой информации о госте в буфер обмена
+const copyStatus = ref('idle'); // 'idle', 'copied', 'error'
+const copyLabel = computed(() => {
+  if (copyStatus.value === 'copied') return t('copied');
+  if (copyStatus.value === 'error') return t('copyError');
+  return t('copy');
+});
+
+async function copyGuestInfo() {
+  const tag = selectedGuest.value?.tag;
+  if (!tag) return;
+
+  const text =
+      `name : ${tag.name ?? ''}\n` +
+      `phone : ${tag.phone ?? ''}\n` +
+      `roomNumber : ${tag.roomNumber ?? ''}\n` +
+      `check_in : ${tag.check_in ?? ''}\n` +
+      `check_out : ${tag.check_out ?? ''}\n` +
+      `price : ${tag.price ?? ''}\n` +
+      `adult : ${tag.adult ?? ''}\n` +
+      `children : ${tag.children ?? ''}`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    copyStatus.value = 'copied';
+  } catch (err) {
+    console.error('Failed to copy guest info:', err);
+    copyStatus.value = 'error';
+  } finally {
+    setTimeout(() => { copyStatus.value = 'idle'; }, 1500);
+  }
+}
+
 
 const showBookingForm = ref(false);
 const bookingDraft = ref(null);
@@ -57,6 +266,7 @@ function toggleDescription() {
   // Отложенный «настоящий» апдейт колонок (пересчёт ширины левой панели)
   deferRowHeaderUpdate();
 }
+
 
 const chevronSvg = `
     <svg xmlns="http://www.w3.org/2000/svg"
@@ -107,7 +317,7 @@ const isEditMode = ref(false);
 const editingEvent = ref(null);
 
 const start = new DayPilot.Date("2023-11-01");
-const end = new DayPilot.Date("2026-12-31");
+const end = new DayPilot.Date("2027-12-31");
 const msPerDay = 24 * 60 * 60 * 1000;
 const days = Math.round((new Date(end.value) - new Date(start.value)) / msPerDay) + 1;
 
@@ -169,6 +379,15 @@ const headerMenu = new DayPilot.Menu({
             modal.result.room_number,
             startDate,
             endDate
+        );
+      }
+    },
+    {
+      text: "ReportAll",
+      onClick: async (args) => {
+
+        await generateReportAll(
+
         );
       }
     }
@@ -249,6 +468,18 @@ const config = reactive({
       }
     });
 
+    // Цвет тела и полосы бронирования в зависимости от статусов брони:
+    // guest_checked_in -> зелёное тело карточки, paid_to_owner -> зелёная/красная полоса.
+    const statuses = args.data.tag?.statuses || [];
+    const isCheckedIn = statuses.some(s => s.status_code === 'guest_checked_in');
+    const isPaidToOwner = statuses.some(s => s.status_code === 'paid_to_owner');
+
+    const statusClasses = [
+      isCheckedIn ? 'evt-checked-in' : '',
+      isPaidToOwner ? 'evt-paid-to-owner' : 'evt-not-paid-to-owner',
+    ].filter(Boolean).join(' ');
+    args.data.cssClass = statusClasses;
+
     args.data.areas = areas;
   },
 
@@ -316,6 +547,45 @@ const generateReport = async (room_number, start, end) => {
   }
 };
 
+const generateReportAll = async () => {
+  try {
+    const response = await api.post('/calendar/totalpriceReportXlsx', {}, {
+      responseType: 'blob'
+    });
+
+    // ВАЖНО: явно указываем MIME-тип из заголовков ответа
+    const contentType = response.headers['content-type'] ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `report_TotalPrice.xlsx`;
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    schedulerRef.value?.control.message("Отчёт успешно загружен");
+  } catch (error) {
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      await DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      await DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
 
 
 /* ===== Выделение колонок через composable ===== */
@@ -355,6 +625,16 @@ function openEditForm(event) {
     adult: t.adult ?? '',
     children: t.children ?? '',
     reservationDescription: t.reservationDescription ?? '',
+    reservation_info: {
+      deposit:          t.reservation_info?.deposit          ?? '',
+      deposit_currency: t.reservation_info?.deposit_currency ?? 'USD',
+      prepayment:       t.reservation_info?.prepayment       ?? '',
+      actual_check_in:      t.reservation_info?.actual_check_in  ? new DayPilot.Date(t.reservation_info.actual_check_in)  : null,
+      actual_check_in_time: t.reservation_info?.actual_check_in  ? (extractTime(new DayPilot.Date(t.reservation_info.actual_check_in)) ?? '13:00:00') : '13:00:00',
+      actual_check_out:     t.reservation_info?.actual_check_out ? new DayPilot.Date(t.reservation_info.actual_check_out) : null,
+      actual_check_out_time: t.reservation_info?.actual_check_out ? (extractTime(new DayPilot.Date(t.reservation_info.actual_check_out)) ?? '11:00:00') : '11:00:00',
+    },
+    statuses: t.statuses ?? [],
   };
   showBookingForm.value = true;
 }
@@ -428,6 +708,16 @@ config.onTimeRangeSelected = async (args) => {
     adult: '1',
     children: '0',
     reservationDescription: '',
+    reservation_info: {
+      deposit: '',
+      deposit_currency: 'USD',
+      prepayment: '',
+      actual_check_in: args.start,
+      actual_check_in_time: '13:00:00',
+      actual_check_out: args.end,
+      actual_check_out_time: '11:00:00',
+    },
+    statuses: [],
   };
   showBookingForm.value = true;
 };
@@ -449,6 +739,15 @@ async function handleBookingSubmit(result) {
   const checkInWithTime  = applyTime(result.check_in,  result.check_in_time);
   const checkOutWithTime = applyTime(result.check_out, result.check_out_time);
 
+  const ri = result.reservation_info ?? {};
+
+  const actualCheckInWithTime  = ri.actual_check_in
+      ? applyTime(ri.actual_check_in,  ri.actual_check_in_time  || '13:00:00')
+      : null;
+  const actualCheckOutWithTime = ri.actual_check_out
+      ? applyTime(ri.actual_check_out, ri.actual_check_out_time || '11:00:00')
+      : null;
+
   const payload = {
     roomNumber: result.roomNumber,
     name: result.name,
@@ -461,6 +760,13 @@ async function handleBookingSubmit(result) {
     children: parseInt(result.children || 0),
     phone: result.phone,
     reservationDescription: result.reservationDescription,
+    reservation_info: {
+      deposit:          parseInt(ri.deposit || 0),
+      deposit_currency: ri.deposit_currency ?? '',
+      prepayment:       parseInt(ri.prepayment || 0),
+      actual_check_in:  actualCheckInWithTime  ? actualCheckInWithTime.toString()  + 'Z' : null,
+      actual_check_out: actualCheckOutWithTime ? actualCheckOutWithTime.toString() + 'Z' : null,
+    },
   };
 
   if (isEditMode.value && editingEvent.value) {
@@ -468,9 +774,6 @@ async function handleBookingSubmit(result) {
     try {
       const updated = await updateBooking(id, payload);
 
-      //старая версия добавления 11 часов, теперь вынесенная в функцию для переиспользования
-      // const newStart = new DayPilot.Date(updated.check_in).addHours(11);
-      // const newEnd   = new DayPilot.Date(updated.check_out).addHours(11);
 
       // Новая версия с функцией addElevenHoursDP для добавления 11 часов
       const newStart = addElevenHoursDP(updated.check_in);
@@ -497,6 +800,8 @@ async function handleBookingSubmit(result) {
         days: updated.days,
         priceForOneNight: updated.price_for_night,
         reservationDescription: updated.reservationDescription,
+        reservation_info: updated.reservation_info ?? null,
+        statuses: ev.data.tag?.statuses ?? [],
       };
       schedulerRef.value?.control.events.update(ev);
       schedulerRef.value?.control.message("Изменения сохранены");
@@ -538,6 +843,8 @@ async function handleBookingSubmit(result) {
       days: d.days,
       priceForOneNight: d.price_for_night,
       reservationDescription: d.reservationDescription,
+      reservation_info: d.reservation_info ?? null,
+      statuses: d.statuses ?? [],
     }
   });
 
@@ -550,6 +857,35 @@ function handleBookingCancel() {
   if (isEditMode.value) {
     isEditMode.value = false;
     editingEvent.value = null;
+  }
+}
+
+// Обрабатывает переключение статуса брони прямо из info-panel: обновляет tag события
+// на календаре и данные выбранного гостя, чтобы бейджи статусов сразу отобразили актуальное состояние.
+function applyStatusesToReservation(reservationId, statuses) {
+  const ev = schedulerRef.value?.control.events.find(reservationId);
+  if (ev) {
+    ev.data.tag = { ...ev.data.tag, statuses };
+    schedulerRef.value?.control.events.update(ev);
+  }
+  if (selectedGuest.value?.id === reservationId) {
+    selectedGuest.value = { ...selectedGuest.value, tag: { ...selectedGuest.value.tag, statuses } };
+  }
+}
+
+async function toggleGuestStatus(statusTypeId) {
+  const reservationId = selectedGuest.value?.id;
+  if (!reservationId || statusLoading.value) return;
+  statusLoading.value = true;
+  try {
+    await api.post(`/calendar/reservations/${reservationId}/statuses/${statusTypeId}`);
+    const { data } = await api.get(`/calendar/reservations/${reservationId}/statuses`);
+    applyStatusesToReservation(reservationId, data || []);
+  } catch (err) {
+    const msg = err.response?.data?.message || err.response?.data || err.message;
+    await DayPilot.Modal.alert(`Ошибка изменения статуса: ${msg}`);
+  } finally {
+    statusLoading.value = false;
   }
 }
 
@@ -593,11 +929,17 @@ const updateBooking = async (id,booking) => {
 const loadResources = async () => {
   try {
     const { data } = await api.get('/calendar/r');
-    config.resources = data.apartments.map(apt => ({
+    const mapped = data.apartments.map(apt => ({
       name: apt.room_number,
       id: apt.room_number,
       description: apt.description || "",
     }));
+    // Апартаменты с номером, начинающимся на "Serenity", должны идти последними
+    const isSerenity = (r) => String(r.name ?? '').startsWith('Serenity');
+    config.resources = [
+      ...mapped.filter(r => !isSerenity(r)),
+      ...mapped.filter(isSerenity),
+    ];
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
@@ -644,6 +986,8 @@ const loadEvents = async () => {
           days: b.days,
           priceForOneNight: b.price_for_night,
           reservationDescription: b.reservationDescription,
+          reservation_info: b.reservation_info ?? null,
+          statuses: b.statuses ?? [],
         }
       });
     });
@@ -660,7 +1004,24 @@ const loadEventsAll = async () => {
     )
   }
 
-  const { data } = await api.post('/calendar/rall', {room_numbers: rooms});
+  let data;
+  try {
+    const response = await api.post('/calendar/rall', { room_numbers: rooms });
+    data = response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      router.push('/login');
+      return;
+    }
+    if (error.response) {
+      const status = error.response.status;
+      const msg = error.response.data?.message || error.response.data || error.message;
+      DayPilot.Modal.alert(`Ошибка ${status}: ${msg}`);
+    } else {
+      DayPilot.Modal.alert(`Ошибка: ${error.message}`);
+    }
+    return;
+  }
   const bookings = data.bookings || data;
   bookings.forEach(b => {
     const checkIn = addElevenHoursDP(b.check_in);
@@ -677,8 +1038,8 @@ const loadEventsAll = async () => {
         roomNumber: b.roomNumber,
         check_in: extractDate(checkIn),
         check_out: extractDate(checkOut),
-        check_in_time: extractTime(checkIn) ?? '13:00:00',
-        check_out_time: extractTime(checkOut) ?? '11:00:00',
+        check_in_time: extractTime(checkIn),
+        check_out_time: extractTime(checkOut),
         price: b.price,
         cleaning_price: b.cleaning_price,
         electricity_and_water_payment: b.electricity_and_water_payment,
@@ -687,6 +1048,8 @@ const loadEventsAll = async () => {
         days: b.days,
         priceForOneNight: b.price_for_night,
         reservationDescription: b.reservationDescription,
+        reservation_info: b.reservation_info ?? null,
+        statuses: b.statuses ?? [],
       }
     });
   });
@@ -700,6 +1063,7 @@ onMounted(async () => {
 
   await loadResources();
   await loadEventsAll();
+  await loadStatusTypes();
 
   // Делегируем клик по шеврону
   schedulerRef.value?.$el?.addEventListener("click", (e) => {
@@ -827,26 +1191,139 @@ onMounted(async () => {
   font-size: 20px;
   cursor: pointer;
 }
-.list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 44px;
+  background: #eef1f6;
+  color: #374151;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.copy-btn:hover {
+  background: #e2e7ef;
+}
+.guest-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 14px;
 }
-.list-item {
-  padding: 4px 0;
-  border-bottom: 1px solid #ececec;
-  line-height: 1.28;
+.guest-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
+}
+.guest-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+.guest-phone {
+  font-size: 13px;
+  color: #4f8cff;
+}
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 2px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px dashed #ececec;
+}
+.info-row:last-child {
+  border-bottom: none;
+}
+.info-label {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.info-value {
+  color: #1f2937;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+.info-description {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.4;
+  margin: 0;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.list-item:last-child {
-  border-bottom: none;
+.statuses-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e4e7ed;
+}
+.statuses-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 10px;
+}
+.statuses-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.status-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: #fff;
+  background: #d9343a; /* выключен — красный */
+  transition: background .15s, opacity .15s, filter .15s;
+  font-family: inherit;
+}
+.status-btn.active {
+  background: #22a06b; /* включён — зелёный */
+}
+.status-btn:disabled,
+.status-btn.loading {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.status-btn:not(:disabled):hover {
+  filter: brightness(1.08);
 }
 :deep(.scheduler_default_event_inner) {
   background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(52, 221, 221) 100%) !important;
+}
+/* guest_checked_in = true -> зелёное тело карточки бронирования */
+:deep(.evt-checked-in .scheduler_default_event_inner) {
+  background: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(69, 221, 52) 100%) !important;
+}
+/* paid_to_owner = true -> зелёная полоса; иначе (false/нет статуса) -> красная */
+:deep(.evt-paid-to-owner .scheduler_default_event_bar_inner) {
+  background: rgb(69, 221, 52) !important;
+}
+:deep(.evt-not-paid-to-owner .scheduler_default_event_bar_inner) {
+  background: #d9343a !important;
 }
 </style>

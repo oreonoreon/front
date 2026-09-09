@@ -1,0 +1,1826 @@
+<template>
+  <div class="today-view">
+    <!-- Навигация -->
+    <div class="calendar-nav">
+      <button class="nav-btn" @click="shiftDays(-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="nav-btn today-btn" @click="goToToday">{{ t('today') }}</button>
+      <button class="nav-btn" @click="shiftDays(1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <input
+        type="date"
+        class="nav-date-input"
+        :value="startDate"
+        @change="jumpToDate($event.target.value)"
+      />
+    </div>
+
+    <!-- Колонки дней -->
+    <div class="days-container">
+      <div
+        v-for="date in visibleDates"
+        :key="date"
+        class="day-column"
+        :class="{ 'is-today': isToday(date) }"
+      >
+        <!-- Заголовок дня -->
+        <div class="day-header">
+          <span class="day-weekday">{{ formatWeekday(date) }}</span>
+          <span class="day-date">{{ formatDate(date) }}</span>
+          <div class="add-cleaning-menu" @click.stop>
+            <button
+              class="add-cleaning-btn"
+              type="button"
+              @click="toggleAddMenu(date)"
+              :title="t('createCleaning')"
+            >+</button>
+            <div v-if="openAddMenuDate === date" class="add-cleaning-dropdown">
+              <button type="button" class="add-cleaning-dropdown-item" @click="onNewCleaningClick(date)">
+                {{ t('createCleaning') }}
+              </button>
+              <button type="button" class="add-cleaning-dropdown-item" @click="onCopyDayClick(date)">
+                {{ t('copyDay') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Тело дня -->
+        <div class="day-body">
+          <!-- Загрузка -->
+          <div v-if="loadingDates[date]" class="day-placeholder">
+            <span class="spinner"></span>
+          </div>
+
+          <template v-else>
+            <!-- Check-in -->
+            <template v-if="checkInsByDate[date]?.length">
+              <div class="section-label section-checkin">{{ t('sectionCheckin') }}</div>
+              <div
+                v-for="b in checkInsByDate[date]"
+                :key="'ci-' + b.id"
+                class="booking-card checkin"
+                style="cursor:pointer"
+                @click="openEditReservationInfo(b, 'checkin', date)"
+              >
+                <div class="card-badge-row">
+                  <span class="card-badge badge-checkin">CHECK-IN</span>
+                </div>
+                <div class="card-top">
+                  <span class="card-room">{{ b.roomNumber }}</span>
+                  <span class="card-time">{{ formatTimeFromDate(b.reservation_info.actual_check_in) }}</span>
+                </div>
+                <div class="card-guest">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ getName(b.name) }}
+                </div>
+                <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
+                <div class="card-stay">
+                  {{ formatDateShort(b.check_in) }} → {{ formatDateShort(b.check_out) }}
+                  <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
+                </div>
+                <div v-if="b.adult || b.children" class="card-guests-count">
+                  <span v-if="b.adult">👤 {{ b.adult }}</span>
+                  <span v-if="b.children">👶 {{ b.children }}</span>
+                </div>
+                <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ getElectricityPaymentText(b.electricity_and_water_payment) }}</div>
+                <div class="card-bottom">
+                  <span class="price-tag booking-price">{{ b.reservation_info?.payment_on_checkin ?? 0 }}฿</span>
+                  <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Check-out -->
+            <template v-if="checkOutsByDate[date]?.length">
+              <div class="section-label section-checkout">{{ t('sectionCheckout') }}</div>
+              <div
+                v-for="b in checkOutsByDate[date]"
+                :key="'co-' + b.id"
+                class="booking-card checkout"
+                style="cursor:pointer"
+                @click="openEditReservationInfo(b, 'checkout', date)"
+              >
+                <div class="card-badge-row">
+                  <span class="card-badge badge-checkout">CHECK-OUT</span>
+                </div>
+                <div class="card-top">
+                  <span class="card-room">{{ b.roomNumber }}</span>
+                  <span class="card-time">{{ formatTimeFromDate(b.reservation_info.actual_check_out) }}</span>
+                </div>
+                <div class="card-guest">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ getName(b.name) }}
+                </div>
+                <div v-if="b.phone" class="card-phone">📞 {{ b.phone }}</div>
+                <div class="card-stay">
+                  {{ formatDateShort(b.check_in) }} → {{ formatDateShort(b.check_out) }}
+                  <span class="stay-days">({{ b.days }} {{ t('nights') }})</span>
+                </div>
+                <div v-if="b.reservationDescription" class="card-desc">{{ getDescription(b.reservationDescription) }}</div>
+                <div v-if="b.electricity_and_water_payment" class="card-electricity">⚡ {{ getElectricityPaymentText(b.electricity_and_water_payment) }}</div>
+                <div class="card-bottom">
+                  <span class="price-deposit">{{ t('deposit') }}: {{ b.reservation_info?.deposit ?? 0 }} {{ b.reservation_info?.deposit_currency || 'USD' }}</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Уборки -->
+            <template v-if="cleaningsByDate[date]?.length">
+              <div class="section-label section-cleaning">{{ t('sectionCleaning') }}</div>
+              <div
+                v-for="c in cleaningsByDate[date]"
+                :key="'cl-' + c.id"
+                class="cleaning-card"
+                :class="{ paid: c.paid }"
+                @click="openEditCleaning(c)"
+              >
+                <div class="card-badge-row">
+                  <span class="card-badge badge-cleaning">CLEANING</span>
+                </div>
+                <div class="card-top">
+                  <span class="card-room">{{ c.room }}</span>
+                  <span class="card-time">{{ formatTime(c.cleaning_time) }}</span>
+                </div>
+
+                <div v-if="c.agent_name" class="card-agent">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ c.agent_name }}
+                </div>
+
+                <div v-if="c.description" class="card-desc">
+                  {{ c.description }}
+                </div>
+
+                <div class="card-bottom">
+                  <div class="card-prices">
+                    <span v-if="c.cleaning_price" class="price-tag cleaning-price">
+                      🧹 {{ c.cleaning_price }}฿
+                    </span>
+                    <span v-if="c.laundry_price" class="price-tag laundry-price">
+                      👕 {{ c.laundry_price }}฿
+                    </span>
+                  </div>
+                  <span class="card-status" :class="c.paid ? 'status-paid' : 'status-unpaid'">
+                    {{ c.paid ? t('paid') : t('unpaid') }}
+                  </span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Всё пусто -->
+            <div
+              v-if="!checkInsByDate[date]?.length && !checkOutsByDate[date]?.length && !cleaningsByDate[date]?.length"
+              class="day-placeholder"
+            >
+              <span class="empty-text">{{ t('noEvents') }}</span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка редактирования уборки -->
+    <Teleport to="body">
+      <div v-if="editModal.visible" class="modal-overlay" @click.self="closeEditModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>{{ editModal.isCreate ? t('createCleaning') : t('editCleaning') }}</h3>
+            <button class="modal-close" @click="closeEditModal">&times;</button>
+          </div>
+
+          <form class="modal-body" @submit.prevent="submitEdit">
+            <div class="form-group">
+              <label>{{ t('room') }}</label>
+              <input v-model="editForm.room" type="text" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>{{ t('date') }}</label>
+              <input v-model="editForm.cleaning_date" type="date" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>{{ t('time') }}</label>
+              <vue-timepicker
+                v-model="editForm.cleaning_time_obj"
+                format="HH:mm"
+                :hour-range="[[0,23]]"
+                :minute-interval="1"
+                close-on-complete
+                input-class="time-picker-input"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>{{ t('agent') }}</label>
+              <input v-model="editForm.agent_name" type="text" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>{{ t('description') }}</label>
+              <textarea v-model="editForm.description" class="form-input form-textarea" rows="3"></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t('cleaningPrice') }}</label>
+                <input v-model.number="editForm.cleaning_price" type="number" min="0" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>{{ t('laundryPrice') }}</label>
+                <input v-model.number="editForm.laundry_price" type="number" min="0" class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-group form-checkbox-group">
+              <label class="checkbox-label">
+                <input v-model="editForm.paid" type="checkbox" />
+                {{ t('paidLabel') }}
+              </label>
+            </div>
+
+            <div v-if="editModal.error" class="form-error">{{ editModal.error }}</div>
+
+            <div class="modal-footer">
+              <button
+                v-if="!editModal.isCreate"
+                type="button"
+                class="btn btn-delete"
+                :disabled="editModal.saving || editModal.deleting"
+                @click="confirmDeleteCleaning"
+              >
+                {{ editModal.deleting ? t('deleting') : t('delete') }}
+              </button>
+              <div class="footer-right">
+                <button type="button" class="btn btn-cancel" @click="closeEditModal">{{ t('cancel') }}</button>
+                <button type="submit" class="btn btn-save" :disabled="editModal.saving || editModal.deleting">
+                  {{ editModal.saving ? t('saving') : t('save') }}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Подтверждение удаления уборки -->
+    <Teleport to="body">
+      <div v-if="deleteConfirm.visible" class="modal-overlay" @click.self="cancelDelete">
+        <div class="modal-card confirm-card">
+          <div class="modal-header">
+            <h3>{{ t('confirmDeleteTitle') }}</h3>
+          </div>
+          <div class="modal-body confirm-body">
+            <p>{{ t('confirmDeleteText') }}</p>
+          </div>
+          <div class="modal-footer">
+            <div class="footer-right">
+              <button type="button" class="btn btn-cancel" @click="cancelDelete">{{ t('cancel') }}</button>
+              <button type="button" class="btn btn-delete" @click="deleteCleaning">{{ t('confirmDeleteOk') }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Модалка редактирования reservation_info (check-in / check-out) -->
+    <Teleport to="body">
+      <div v-if="riModal.visible" class="modal-overlay" @click.self="closeRiModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>{{ riModal.type === 'checkin' ? t('editCheckin') : t('editCheckout') }}</h3>
+            <button class="modal-close" @click="closeRiModal">&times;</button>
+          </div>
+          <form class="modal-body" @submit.prevent="submitRi">
+
+            <!-- Дата -->
+            <div class="form-group">
+              <label>{{ riModal.type === 'checkin' ? t('actualCheckinDate') : t('actualCheckoutDate') }}</label>
+              <input v-model="riForm.date" type="date" class="form-input" />
+            </div>
+
+            <!-- Время -->
+            <div class="form-group">
+              <label>{{ riModal.type === 'checkin' ? t('actualCheckinTime') : t('actualCheckoutTime') }}</label>
+              <vue-timepicker
+                v-model="riForm.time_obj"
+                format="HH:mm"
+                :hour-range="[[0,23]]"
+                :minute-interval="1"
+                close-on-complete
+                input-class="time-picker-input"
+              />
+            </div>
+
+            <!-- Депозит -->
+            <div v-if="riModal.type !== 'checkout'" class="form-row">
+              <div class="form-group">
+                <label>{{ t('depositLabel') }}</label>
+                <input v-model.number="riForm.deposit" type="number" min="0" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>{{ t('depositCurrency') }}</label>
+                <input v-model="riForm.deposit_currency" type="text" class="form-input" placeholder="USD" />
+              </div>
+            </div>
+
+            <div v-if="riModal.error" class="form-error">{{ riModal.error }}</div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-cancel" @click="closeRiModal">{{ t('cancel') }}</button>
+              <button type="submit" class="btn btn-save" :disabled="riModal.saving">
+                {{ riModal.saving ? t('saving') : t('save') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Toast: скопировано в буфер -->
+    <transition name="fade">
+      <div v-if="copyToast" class="copy-toast">{{ t('copiedToClipboard') }}</div>
+    </transition>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import api from '../api.js'
+import VueTimepicker from 'vue3-timepicker'
+import 'vue3-timepicker/dist/VueTimepicker.css'
+
+// ─── Локализация ───
+const stored = localStorage.getItem('lang')
+const lang = ref(stored === 'en' ? 'en' : 'ru')
+
+const translations = {
+  ru: {
+    today: 'Сегодня',
+    sectionCheckin: '▶ Check-in',
+    sectionCheckout: '◀ Check-out',
+    sectionCleaning: '🧹 Уборки',
+    nights: 'н.',
+    deposit: 'Депозит',
+    paid: '✓ Оплачено',
+    unpaid: 'Не оплачено',
+    noEvents: 'Нет событий',
+    editCleaning: 'Редактирование уборки',
+    createCleaning: 'Новая уборка',
+    editCheckin: 'Редактирование Check-in',
+    editCheckout: 'Редактирование Check-out',
+    copyDay: 'Копировать день',
+    copiedToClipboard: 'Скопировано в буфер обмена',
+    room: 'Комната',
+    date: 'Дата',
+    time: 'Время',
+    agent: 'Агент',
+    description: 'Описание',
+    cleaningPrice: 'Цена уборки (฿)',
+    laundryPrice: 'Прачечная (฿)',
+    paidLabel: 'Оплачено',
+    cancel: 'Отмена',
+    saving: 'Сохранение...',
+    save: 'Сохранить',
+    actualCheckinDate: 'Дата заезда (actual)',
+    actualCheckoutDate: 'Дата выезда (actual)',
+    actualCheckinTime: 'Время заезда (actual)',
+    actualCheckoutTime: 'Время выезда (actual)',
+    depositLabel: 'Депозит',
+    depositCurrency: 'Валюта депозита',
+    saveError: 'Ошибка сохранения',
+    delete: 'Удалить',
+    deleting: 'Удаление...',
+    confirmDeleteTitle: 'Удалить уборку?',
+    confirmDeleteText: 'Это действие нельзя будет отменить.',
+    confirmDeleteOk: 'Удалить',
+    deleteError: 'Ошибка удаления',
+  },
+  en: {
+    today: 'Today',
+    sectionCheckin: '▶ Check-in',
+    sectionCheckout: '◀ Check-out',
+    sectionCleaning: '🧹 Cleaning',
+    nights: 'n.',
+    deposit: 'Deposit',
+    paid: '✓ Paid',
+    unpaid: 'Unpaid',
+    noEvents: 'No events',
+    editCleaning: 'Edit Cleaning',
+    createCleaning: 'New Cleaning',
+    editCheckin: 'Edit Check-in',
+    editCheckout: 'Edit Check-out',
+    copyDay: 'Copy day',
+    copiedToClipboard: 'Copied to clipboard',
+    room: 'Room',
+    date: 'Date',
+    time: 'Time',
+    agent: 'Agent',
+    description: 'Description',
+    cleaningPrice: 'Cleaning price (฿)',
+    laundryPrice: 'Laundry (฿)',
+    paidLabel: 'Paid',
+    cancel: 'Cancel',
+    saving: 'Saving...',
+    save: 'Save',
+    actualCheckinDate: 'Check-in date (actual)',
+    actualCheckoutDate: 'Check-out date (actual)',
+    actualCheckinTime: 'Check-in time (actual)',
+    actualCheckoutTime: 'Check-out time (actual)',
+    depositLabel: 'Deposit',
+    depositCurrency: 'Deposit currency',
+    saveError: 'Save error',
+    delete: 'Delete',
+    deleting: 'Deleting...',
+    confirmDeleteTitle: 'Delete cleaning?',
+    confirmDeleteText: 'This action cannot be undone.',
+    confirmDeleteOk: 'Delete',
+    deleteError: 'Delete error',
+  },
+}
+
+function t(key) {
+  return translations[lang.value]?.[key] ?? translations['ru'][key] ?? key
+}
+
+// ─── Авто-перевод через Google Translate (неофициальный) ───
+const translationCache = reactive({})
+
+async function translateToEn(text) {
+  if (!text) return
+  if (translationCache[text] !== undefined) return
+  translationCache[text] = null
+  try {
+    const url =
+      `https://translate.googleapis.com/translate_a/single` +
+      `?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
+    const data = await res.json()
+    // Ответ: [[["translated","original",...],...],...]
+    const translated = data[0]?.map(chunk => chunk[0]).join('') || text
+    translationCache[text] = translated
+  } catch {
+    translationCache[text] = text
+  }
+}
+
+function getDescription(text) {
+  if (!text) return ''
+  if (lang.value !== 'en') return text
+  if (translationCache[text] === undefined || translationCache[text] === null) {
+    translateToEn(text)
+  }
+  return translationCache[text] || text
+}
+
+// ─── Перевод имён через Google Translate (неофициальный) ───
+const nameCache = reactive({})
+
+async function translateName(text) {
+  if (!text) return
+  if (nameCache[text] !== undefined) return
+  nameCache[text] = null
+  try {
+    const url =
+      `https://translate.googleapis.com/translate_a/single` +
+      `?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
+    const data = await res.json()
+    const translated = data[0]?.map(chunk => chunk[0]).join('') || text
+    nameCache[text] = translated
+  } catch {
+    nameCache[text] = text
+  }
+}
+
+function getName(text) {
+  if (!text) return ''
+  if (lang.value !== 'en') return text
+  if (nameCache[text] === undefined || nameCache[text] === null) {
+    translateName(text)
+  }
+  return nameCache[text] || text
+}
+
+function getElectricityPaymentText(value) {
+  if (!value) return ''
+  if (lang.value !== 'en') return value
+  if (value === 'счётчики') return 'Water and Electricity meters'
+  if (!isNaN(value) && String(value).trim() !== '') return 'NO Water and Electricity meters'
+  return value
+}
+
+
+const editModal = reactive({
+  visible: false,
+  saving: false,
+  deleting: false,
+  error: '',
+  isCreate: false,
+  originalDate: '',
+})
+
+const editForm = reactive({
+  id: null,
+  room: '',
+  cleaning_date: '',
+  cleaning_time_obj: { HH: '12', mm: '00' },
+  agent_name: '',
+  description: '',
+  cleaning_price: 0,
+  laundry_price: 0,
+  paid: false,
+  reservation_id: null,
+})
+
+function openEditCleaning(c) {
+  editModal.isCreate = false
+  editForm.id = c.id
+  editForm.room = c.room
+
+  const m = String(c.cleaning_time).match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
+  editForm.cleaning_date = m ? m[1] : ''
+  editForm.cleaning_time_obj = m ? { HH: m[2], mm: m[3] } : { HH: '12', mm: '00' }
+
+  editForm.agent_name = c.agent_name || ''
+  editForm.description = c.description || ''
+  editForm.cleaning_price = c.cleaning_price || 0
+  editForm.laundry_price = c.laundry_price || 0
+  editForm.paid = !!c.paid
+  editForm.reservation_id = c.reservation_id ?? null
+
+  // Запоминаем дату, чтобы обновить колонку после сохранения
+  editModal.originalDate = editForm.cleaning_date
+
+  editModal.error = ''
+  editModal.saving = false
+  editModal.visible = true
+}
+
+function closeEditModal() {
+  editModal.visible = false
+}
+
+const openAddMenuDate = ref(null)
+
+function toggleAddMenu(date) {
+  openAddMenuDate.value = openAddMenuDate.value === date ? null : date
+}
+
+function closeAddMenu() {
+  openAddMenuDate.value = null
+}
+
+function onNewCleaningClick(date) {
+  closeAddMenu()
+  openCreateCleaning(date)
+}
+
+const copyToast = ref(false)
+let copyToastTimer = null
+
+function showCopyToast() {
+  copyToast.value = true
+  clearTimeout(copyToastTimer)
+  copyToastTimer = setTimeout(() => { copyToast.value = false }, 2000)
+}
+
+function buildDayInfoText(date) {
+  const lines = []
+  lines.push(`${formatWeekday(date)}, ${formatDate(date)}`)
+
+  const checkIns = checkInsByDate.value[date] || []
+  if (checkIns.length) {
+    lines.push('', `${t('sectionCheckin')}`)
+    checkIns.forEach((b) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${b.roomNumber}`)
+      const time = formatTimeFromDate(b.reservation_info?.actual_check_in)
+      if (time) lines.push(`${t('time')}: ${time}`)
+      lines.push(`${getName(b.name)}`)
+      if (b.phone) lines.push(`📞 ${b.phone}`)
+      lines.push(`${formatDateShort(b.check_in)} → ${formatDateShort(b.check_out)} (${b.days} ${t('nights')})`)
+      if (b.adult || b.children) {
+        const parts = []
+        if (b.adult) parts.push(`👤 ${b.adult}`)
+        if (b.children) parts.push(`👶 ${b.children}`)
+        lines.push(parts.join(' '))
+      }
+      if (b.reservationDescription) lines.push(getDescription(b.reservationDescription))
+      if (b.electricity_and_water_payment) lines.push(`⚡ ${getElectricityPaymentText(b.electricity_and_water_payment)}`)
+      lines.push(`${b.reservation_info?.payment_on_checkin ?? 0}฿ | ${t('deposit')}: ${b.reservation_info?.deposit ?? 0} ${b.reservation_info?.deposit_currency || 'USD'}`)
+    })
+  }
+
+  const checkOuts = checkOutsByDate.value[date] || []
+  if (checkOuts.length) {
+    lines.push('', `${t('sectionCheckout')}`)
+    checkOuts.forEach((b) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${b.roomNumber}`)
+      const time = formatTimeFromDate(b.reservation_info?.actual_check_out)
+      if (time) lines.push(`${t('time')}: ${time}`)
+      lines.push(`${getName(b.name)}`)
+      if (b.phone) lines.push(`📞 ${b.phone}`)
+      lines.push(`${formatDateShort(b.check_in)} → ${formatDateShort(b.check_out)} (${b.days} ${t('nights')})`)
+      if (b.reservationDescription) lines.push(getDescription(b.reservationDescription))
+      if (b.electricity_and_water_payment) lines.push(`⚡ ${getElectricityPaymentText(b.electricity_and_water_payment)}`)
+      lines.push(`${t('deposit')}: ${b.reservation_info?.deposit ?? 0} ${b.reservation_info?.deposit_currency || 'USD'}`)
+    })
+  }
+
+  const cleanings = cleaningsByDate.value[date] || []
+  if (cleanings.length) {
+    lines.push('', `${t('sectionCleaning')}`)
+    cleanings.forEach((c) => {
+      lines.push('------------------')
+      lines.push(`${t('room')}: ${c.room} | ${formatTime(c.cleaning_time)}`)
+      if (c.agent_name) lines.push(`${c.agent_name}`)
+      if (c.description) lines.push(c.description)
+      const prices = []
+      if (c.cleaning_price) prices.push(`🧹 ${c.cleaning_price}฿`)
+      if (c.laundry_price) prices.push(`👕 ${c.laundry_price}฿`)
+      if (prices.length) lines.push(prices.join(' '))
+      lines.push(c.paid ? t('paid') : t('unpaid'))
+    })
+  }
+
+  if (!checkIns.length && !checkOuts.length && !cleanings.length) {
+    lines.push('', t('noEvents'))
+  }
+
+  return lines.join('\n')
+}
+
+async function onCopyDayClick(date) {
+  closeAddMenu()
+  const text = buildDayInfoText(date)
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+  showCopyToast()
+}
+
+function openCreateCleaning(date) {
+  editModal.isCreate = true
+  editForm.id = null
+  editForm.room = ''
+  editForm.cleaning_date = date
+  editForm.cleaning_time_obj = { HH: '12', mm: '00' }
+  editForm.agent_name = ''
+  editForm.description = ''
+  editForm.cleaning_price = 0
+  editForm.laundry_price = 0
+  editForm.paid = false
+  editForm.reservation_id = null
+
+  editModal.originalDate = date
+  editModal.error = ''
+  editModal.saving = false
+  editModal.visible = true
+}
+
+async function submitEdit() {
+  editModal.saving = true
+  editModal.error = ''
+
+  try {
+    const HH = editForm.cleaning_time_obj?.HH ?? '12'
+    const mm = editForm.cleaning_time_obj?.mm ?? '00'
+    const isoTime = `${editForm.cleaning_date}T${HH}:${mm}:00Z`
+
+    const payload = {
+      room: editForm.room,
+      cleaning_time: isoTime,
+      agent_name: editForm.agent_name,
+      description: editForm.description,
+      cleaning_price: editForm.cleaning_price,
+      laundry_price: editForm.laundry_price,
+      paid: editForm.paid,
+    }
+    if (editForm.reservation_id != null) {
+      payload.reservation_id = editForm.reservation_id
+    }
+
+    if (editModal.isCreate) {
+      await api.post('/calendar/cleaning', payload)
+    } else {
+      await api.patch(`/calendar/cleaning/${editForm.id}`, payload)
+    }
+
+    closeEditModal()
+
+    // Обновляем данные: перезагружаем старую дату и новую (если дату уборки поменяли)
+    const newDate = editForm.cleaning_date
+    const datesToRefresh = new Set([editModal.originalDate, newDate].filter(Boolean))
+
+    datesToRefresh.forEach((date) => {
+      fetchedDates.delete(date)
+      fetchDayData(date)
+    })
+  } catch (e) {
+    editModal.error = e.response?.data || e.message || t('saveError')
+  } finally {
+    editModal.saving = false
+  }
+}
+
+// confirm-диалог для удаления уборки
+const deleteConfirm = reactive({ visible: false })
+
+function confirmDeleteCleaning() {
+  deleteConfirm.visible = true
+}
+
+function cancelDelete() {
+  deleteConfirm.visible = false
+}
+
+async function deleteCleaning() {
+  deleteConfirm.visible = false
+  editModal.deleting = true
+  editModal.error = ''
+  try {
+    await api.delete(`/calendar/cleaning/${editForm.id}`)
+    const dateToRefresh = editModal.originalDate
+    closeEditModal()
+    fetchedDates.delete(dateToRefresh)
+    fetchDayData(dateToRefresh)
+  } catch (e) {
+    editModal.error = e.response?.data || e.message || t('deleteError')
+  } finally {
+    editModal.deleting = false
+  }
+}
+
+// ─── Модалка редактирования reservation_info ───
+const riModal = reactive({
+  visible: false,
+  saving: false,
+  error: '',
+  type: 'checkin',   // 'checkin' | 'checkout'
+  refreshDate: '',   // дата колонки для обновления после сохранения
+})
+
+const riForm = reactive({
+  ri_id: null,
+  full_ri: null,     // исходный объект reservation_info целиком
+  date: '',
+  time_obj: { HH: '12', mm: '00' },
+  deposit: 0,
+  deposit_currency: 'USD',
+})
+
+function openEditReservationInfo(b, type, columnDate) {
+  const ri = b.reservation_info
+  if (!ri?.id) return
+
+  riModal.type = type
+  riModal.refreshDate = columnDate
+  riModal.error = ''
+  riModal.saving = false
+
+  riForm.ri_id = ri.id
+  riForm.full_ri = { ...ri }
+  riForm.deposit = ri.deposit ?? 0
+  riForm.deposit_currency = ri.deposit_currency || 'USD'
+
+  const isoStr = type === 'checkin' ? ri.actual_check_in : ri.actual_check_out
+  const m = String(isoStr || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
+  riForm.date = m ? m[1] : ''
+  riForm.time_obj = m ? { HH: m[2], mm: m[3] } : { HH: '12', mm: '00' }
+
+  riModal.visible = true
+}
+
+function closeRiModal() {
+  riModal.visible = false
+}
+
+async function submitRi() {
+  riModal.saving = true
+  riModal.error = ''
+  try {
+    const HH = riForm.time_obj?.HH ?? '12'
+    const mm = riForm.time_obj?.mm ?? '00'
+    const isoTime = `${riForm.date}T${HH}:${mm}:00Z`
+
+    const payload = { ...riForm.full_ri }
+    payload.deposit = riForm.deposit
+    payload.deposit_currency = riForm.deposit_currency
+    if (riModal.type === 'checkin') {
+      payload.actual_check_in = isoTime
+    } else {
+      payload.actual_check_out = isoTime
+    }
+
+    await api.patch(`/calendar/reservation-info/${riForm.ri_id}`, payload)
+
+    closeRiModal()
+    fetchedDates.delete(riModal.refreshDate)
+    fetchDayData(riModal.refreshDate)
+  } catch (e) {
+    riModal.error = e.response?.data || e.message || t('saveError')
+  } finally {
+    riModal.saving = false
+  }
+}
+
+const daysToShow = ref(getDaysCount())
+
+function getDaysCount() {
+  const w = window.innerWidth
+  if (w <= 600) return 1       // мобилка
+  if (w <= 900) return 2       // планшет portrait
+  if (w <= 1200) return 3      // планшет landscape
+  return 5                     // десктоп
+}
+
+let resizeTimer = null
+function onResize() {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    daysToShow.value = getDaysCount()
+  }, 200)
+}
+
+onMounted(() => window.addEventListener('resize', onResize))
+onMounted(() => document.addEventListener('click', closeAddMenu))
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  document.removeEventListener('click', closeAddMenu)
+  clearTimeout(resizeTimer)
+  clearTimeout(copyToastTimer)
+  clearInterval(autoRefreshTimer)
+})
+
+let autoRefreshTimer = null
+onMounted(() => {
+  autoRefreshTimer = setInterval(() => {
+    visibleDates.value.forEach((date) => {
+      fetchedDates.delete(date)
+      fetchDayData(date)
+    })
+  }, 5 * 60 * 1000)
+})
+
+const startDate = ref(todayString())
+const cleaningsByDate = ref({})
+const checkInsByDate = ref({})
+const checkOutsByDate = ref({})
+const loadingDates = ref({})
+
+const visibleDates = computed(() => {
+  const dates = []
+  const base = new Date(startDate.value + 'T00:00:00')
+  for (let i = 0; i < daysToShow.value; i++) {
+    const d = new Date(base)
+    d.setDate(d.getDate() + i)
+    dates.push(toISODate(d))
+  }
+  return dates
+})
+
+// Хранит уже загруженные даты, чтобы не грузить повторно при навигации назад
+const fetchedDates = new Set()
+
+watch(
+  visibleDates,
+  (dates) => {
+    dates.forEach((date) => {
+      if (!fetchedDates.has(date)) {
+        fetchDayData(date)
+      }
+    })
+  },
+  { immediate: true }
+)
+
+async function fetchDayData(date) {
+  fetchedDates.add(date)
+  loadingDates.value = { ...loadingDates.value, [date]: true }
+
+  try {
+    const [cleaningsRes, checkInsRes, checkOutsRes] = await Promise.allSettled([
+      api.get(`/calendar/cleaning/date/${date}`),
+      api.get(`/calendar/bookings/check-in/${date}`),
+      api.get(`/calendar/bookings/check-out/${date}`),
+    ])
+
+    // Уборки
+    const cleanings = cleaningsRes.status === 'fulfilled' ? (cleaningsRes.value.data || []) : []
+    cleanings.sort((a, b) => new Date(a.cleaning_time) - new Date(b.cleaning_time))
+    cleaningsByDate.value = { ...cleaningsByDate.value, [date]: cleanings }
+
+    // Check-in
+    const checkIns = checkInsRes.status === 'fulfilled' ? (checkInsRes.value.data || []) : []
+    checkIns.sort((a, b) => timeSortValue(a.reservation_info?.actual_check_in) - timeSortValue(b.reservation_info?.actual_check_in))
+    checkInsByDate.value = { ...checkInsByDate.value, [date]: checkIns }
+
+    // Check-out
+    const checkOuts = checkOutsRes.status === 'fulfilled' ? (checkOutsRes.value.data || []) : []
+    checkOuts.sort((a, b) => timeSortValue(a.reservation_info?.actual_check_out) - timeSortValue(b.reservation_info?.actual_check_out))
+    checkOutsByDate.value = { ...checkOutsByDate.value, [date]: checkOuts }
+
+    // Предварительно запустить переводы описаний если язык en
+    if (lang.value === 'en') {
+      ;[...checkIns, ...checkOuts].forEach(b => {
+        if (b.reservationDescription) translateToEn(b.reservationDescription)
+        if (b.name) translateName(b.name)
+      })
+    }
+  } catch (e) {
+    console.error(`Ошибка загрузки данных за ${date}:`, e)
+    cleaningsByDate.value = { ...cleaningsByDate.value, [date]: [] }
+    checkInsByDate.value = { ...checkInsByDate.value, [date]: [] }
+    checkOutsByDate.value = { ...checkOutsByDate.value, [date]: [] }
+  } finally {
+    const copy = { ...loadingDates.value }
+    delete copy[date]
+    loadingDates.value = copy
+  }
+}
+
+function shiftDays(offset) {
+  const d = new Date(startDate.value + 'T00:00:00')
+  d.setDate(d.getDate() + offset)
+  startDate.value = toISODate(d)
+}
+
+function goToToday() {
+  startDate.value = todayString()
+  // Принудительно перезагружаем видимые дни
+  visibleDates.value.forEach((date) => {
+    fetchedDates.delete(date)
+    fetchDayData(date)
+  })
+}
+
+function jumpToDate(dateStr) {
+  if (!dateStr) return
+  startDate.value = dateStr
+}
+
+// --- Утилиты ---
+
+function todayString() {
+  return toISODate(new Date())
+}
+
+function toISODate(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function isToday(dateStr) {
+  return dateStr === todayString()
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  return d.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+
+function formatWeekday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  const name = d.toLocaleDateString(locale, { weekday: 'long' })
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+function formatTime(isoTime) {
+  // isoTime = "2026-04-11T14:00:00Z" — берём время как есть, без конвертации TZ
+  return extractTime(isoTime)
+}
+
+function formatDateShort(isoDate) {
+  // Парсим без сдвига TZ: берём только дату из строки
+  const match = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) return ''
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const locale = lang.value === 'en' ? 'en-US' : 'ru-RU'
+  return d.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
+function formatTimeFromDate(isoDate) {
+  const time = extractTime(isoDate)
+  // Если время 00:00 — значит реальное время не задано
+  return time === '00:00' ? '' : time
+}
+
+/**
+ * Извлекает HH:MM из ISO-строки без конвертации часовых поясов.
+ * "2026-04-11T14:00:00Z" → "14:00"
+ * "2026-04-11T14:00:00+07:00" → "14:00"
+ */
+function extractTime(isoStr) {
+  const match = String(isoStr).match(/T(\d{2}):(\d{2})/)
+  if (!match) return ''
+  return `${match[1]}:${match[2]}`
+}
+
+/**
+ * Возвращает число минут от начала суток для сортировки карточек по времени.
+ * Если время не задано или равно 00:00 (т.е. реальное время не указано),
+ * запись уходит в конец списка.
+ */
+function timeSortValue(isoStr) {
+  const match = String(isoStr).match(/T(\d{2}):(\d{2})/)
+  if (!match) return Infinity
+  const hh = Number(match[1])
+  const mm = Number(match[2])
+  if (hh === 0 && mm === 0) return Infinity
+  return hh * 60 + mm
+}
+</script>
+
+<style scoped>
+.today-view {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: #f0f2f5;
+}
+
+/* ─── Навигация ─── */
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.nav-btn:hover {
+  background: #f9fafb;
+  border-color: #98a2b3;
+}
+
+.nav-btn:active {
+  background: #f2f4f7;
+  transform: scale(0.97);
+}
+
+.today-btn {
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  font-weight: 600;
+}
+
+.today-btn:hover {
+  filter: brightness(1.08);
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+}
+
+.nav-date-input {
+  padding: 7px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.nav-date-input:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
+}
+
+/* ─── Контейнер дней ─── */
+.days-container {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+/* ─── Колонка дня ─── */
+.day-column {
+  flex: 1;
+  min-width: 280px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.day-column.is-today {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+}
+
+.day-header {
+  padding: 18px 20px 14px;
+  text-align: center;
+  border-bottom: 1px solid #f2f4f7;
+  background: #fafbfc;
+  position: relative;
+}
+
+.add-cleaning-menu {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+}
+
+.add-cleaning-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #4f8cff, #6157ff);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+.add-cleaning-btn:hover {
+  opacity: 0.85;
+}
+
+.add-cleaning-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 20;
+}
+
+.add-cleaning-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #1f2937;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.add-cleaning-dropdown-item:hover {
+  background: #f2f4f7;
+}
+
+.copy-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.25);
+  z-index: 100;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.25s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.day-weekday {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #98a2b3;
+}
+
+.is-today .day-weekday {
+  color: #4f8cff;
+}
+
+.day-date {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1d2939;
+  margin-top: 4px;
+}
+
+.is-today .day-date {
+  color: #4f8cff;
+}
+
+/* ─── Тело дня ─── */
+.day-body {
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.day-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80px;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #b0b8c4;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e4e7ec;
+  border-top-color: #4f8cff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ─── Секции-разделители ─── */
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 0;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+.section-checkin {
+  color: #027a48;
+}
+
+.section-checkout {
+  color: #b42318;
+}
+
+.section-cleaning {
+  color: #667085;
+}
+
+/* ─── Карточка бронирования ─── */
+.booking-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.booking-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
+}
+
+.booking-card.checkin {
+  border-left: 4px solid #32d583;
+}
+
+.booking-card.checkout {
+  border-left: 4px solid #ffb347;
+}
+
+.card-badge-row {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-checkin {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.badge-checkout {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.badge-cleaning {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.card-guest {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #344054;
+  margin-bottom: 4px;
+}
+
+.card-guest svg {
+  flex-shrink: 0;
+  color: #98a2b3;
+}
+
+.card-phone {
+  font-size: 13px;
+  color: #667085;
+  margin-bottom: 4px;
+}
+
+.card-stay {
+  font-size: 12.5px;
+  color: #667085;
+  margin-bottom: 4px;
+}
+
+.stay-days {
+  color: #98a2b3;
+}
+
+.card-guests-count {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #667085;
+  margin-bottom: 4px;
+}
+
+.booking-price {
+  background: #f0e6ff;
+  color: #6927da;
+}
+
+.price-night {
+  font-size: 12px;
+  color: #98a2b3;
+  font-weight: 500;
+}
+
+.price-deposit {
+  margin-left: auto;
+  font-size: 12px;
+  color: #344054;
+  font-weight: 600;
+  background: #f2f4f7;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* ─── Карточка уборки ─── */
+.cleaning-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+  border-left: 4px solid #f97066;
+}
+
+.cleaning-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
+}
+
+.cleaning-card.paid {
+  border-left-color: #4f8cff;
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.card-room {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d2939;
+}
+
+.card-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #667085;
+  background: #f2f4f7;
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
+.card-agent {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #667085;
+  margin-bottom: 4px;
+}
+
+.card-agent svg {
+  flex-shrink: 0;
+  color: #98a2b3;
+}
+
+.card-desc {
+  font-size: 12.5px;
+  color: #000; /* было #98a2b3 */
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.card-electricity {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #667085;
+  margin-bottom: 4px;
+}
+
+.card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f2f4f7;
+}
+
+.card-prices {
+  display: flex;
+  gap: 8px;
+}
+
+.price-tag {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.cleaning-price {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.laundry-price {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.card-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.status-paid {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.status-unpaid {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+/* ─── Адаптивность ─── */
+@media (max-width: 820px) {
+  .today-view {
+    padding: 12px;
+  }
+
+  .days-container {
+    gap: 10px;
+  }
+
+  .day-column {
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  .today-view {
+    padding: 8px;
+  }
+
+  .cleaning-card {
+    padding: 12px;
+  }
+}
+
+/* ─── Модалка ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: visible;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #f2f4f7;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1d2939;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #98a2b3;
+  line-height: 1;
+  padding: 0;
+}
+
+.modal-close:hover {
+  color: #344054;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.form-input {
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1d2939;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
+}
+
+.form-textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-checkbox-group {
+  flex-direction: row;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f8cff;
+  cursor: pointer;
+}
+
+.form-error {
+  font-size: 13px;
+  color: #b42318;
+  background: #fef3f2;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.footer-right {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.btn {
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-cancel {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.btn-cancel:hover {
+  background: #e4e7ec;
+}
+
+.btn-save {
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+  color: #fff;
+}
+
+.btn-save:hover {
+  filter: brightness(1.08);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-delete {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.btn-delete:hover {
+  background: #fecdca;
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-card {
+  max-width: 360px;
+}
+
+.confirm-body {
+  font-size: 14px;
+  color: #344054;
+  padding: 12px 24px 16px;
+}
+
+.confirm-card .modal-footer {
+  padding: 12px 24px 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── vue3-timepicker styling ── */
+:deep(.vue__time-picker) {
+  width: 100%;
+}
+:deep(.vue__time-picker input.time-picker-input) {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #f9fafb;
+  transition: border-color .15s, background .15s;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  height: auto;
+}
+:deep(.vue__time-picker input.time-picker-input:focus) {
+  border-color: #4f8cff;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
+}
+:deep(.vue__time-picker .dropdown) {
+  z-index: 9999;
+}
+</style>

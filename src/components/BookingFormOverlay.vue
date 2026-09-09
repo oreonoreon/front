@@ -184,11 +184,88 @@
               ></textarea>
             </div>
 
+            <!-- ── Reservation info ── -->
+            <div class="section-title">Reservation info</div>
+
+            <div class="double">
+              <div class="form-row">
+                <label for="deposit">Deposit</label>
+                <input
+                    id="deposit"
+                    v-model="form.reservation_info.deposit"
+                    inputmode="numeric"
+                    @blur="digitsOrEmptyNested('reservation_info', 'deposit')"
+                    placeholder="0"
+                />
+              </div>
+              <div class="form-row">
+                <label for="deposit_currency">Deposit currency</label>
+                <input
+                    id="deposit_currency"
+                    v-model="form.reservation_info.deposit_currency"
+                    placeholder="USD"
+                    autocomplete="off"
+                />
+              </div>
+            </div>
+
+            <div class="double">
+              <div class="form-row">
+                <label for="prepayment">Prepayment</label>
+                <input
+                    id="prepayment"
+                    v-model="form.reservation_info.prepayment"
+                    inputmode="numeric"
+                    @blur="digitsOrEmptyNested('reservation_info', 'prepayment')"
+                    placeholder="0"
+                />
+              </div>
+            </div>
+
+            <!-- actual check-in / check-out -->
+            <div class="double">
+              <div class="form-row">
+                <label>Actual Check In</label>
+                <input
+                    type="date"
+                    :value="form.reservation_info.actual_check_in ? form.reservation_info.actual_check_in.toString('yyyy-MM-dd') : ''"
+                    @input="e => onReservationDateInput(e, 'actual_check_in')"
+                />
+                <label style="margin-top:6px;">Actual Check In Time</label>
+                <vue-timepicker
+                    v-model="actualCheckInTimeObj"
+                    format="HH:mm"
+                    :hour-range="[[0,23]]"
+                    :minute-interval="1"
+                    close-on-complete
+                    input-class="time-picker-input"
+                />
+              </div>
+              <div class="form-row">
+                <label>Actual Check Out</label>
+                <input
+                    type="date"
+                    :value="form.reservation_info.actual_check_out ? form.reservation_info.actual_check_out.toString('yyyy-MM-dd') : ''"
+                    @input="e => onReservationDateInput(e, 'actual_check_out')"
+                />
+                <label style="margin-top:6px;">Actual Check Out Time</label>
+                <vue-timepicker
+                    v-model="actualCheckOutTimeObj"
+                    format="HH:mm"
+                    :hour-range="[[0,23]]"
+                    :minute-interval="1"
+                    close-on-complete
+                    input-class="time-picker-input"
+                />
+              </div>
+            </div>
+
             <div class="form-info">
               <p class="hint">
                 В "Description" описывем всё что небходимо знать для заселения: предоплата 00000 бат оплачено, комиссия агента, имя агента, оплата при заезде, гость от собственника, депозит 300$ или 30000 руб переводом, гость от собственника, HomeExchange гость должен оплатить 2000 бат, имена гостей собственников если собственник не дал их контакты, возраст детей если есть, переезд в другие квартиры, детская кроватка или стульчик, оплачено через Букинг, оплачено через Аренби.
               </p>
             </div>
+
           </div>
 
           <div class="buttons">
@@ -209,6 +286,7 @@ import { DayPilot } from '@oreonoreon/calendar';
 import { reactive, watch, onMounted, onBeforeUnmount, nextTick, ref, computed } from 'vue';
 import VueTimepicker from 'vue3-timepicker';
 import 'vue3-timepicker/dist/VueTimepicker.css';
+import api from '../api.js';
 
 /* ── Computed-обёртки для vue3-timepicker (HH:mm формат) ── */
 const checkInTimeObj = computed({
@@ -231,6 +309,30 @@ const checkOutTimeObj = computed({
   set(val) {
     if (val && val.HH !== '' && val.mm !== '') {
       form.check_out_time = `${val.HH}:${val.mm}:00`;
+    }
+  },
+});
+
+const actualCheckInTimeObj = computed({
+  get() {
+    const [HH = '13', mm = '00'] = (form.reservation_info.actual_check_in_time || '13:00:00').split(':');
+    return { HH, mm };
+  },
+  set(val) {
+    if (val && val.HH !== '' && val.mm !== '') {
+      form.reservation_info.actual_check_in_time = `${val.HH}:${val.mm}:00`;
+    }
+  },
+});
+
+const actualCheckOutTimeObj = computed({
+  get() {
+    const [HH = '11', mm = '00'] = (form.reservation_info.actual_check_out_time || '11:00:00').split(':');
+    return { HH, mm };
+  },
+  set(val) {
+    if (val && val.HH !== '' && val.mm !== '') {
+      form.reservation_info.actual_check_out_time = `${val.HH}:${val.mm}:00`;
     }
   },
 });
@@ -258,6 +360,15 @@ const form = reactive({
   adult: '',
   children: '',
   reservationDescription: '',
+  reservation_info: {
+    deposit: '',
+    deposit_currency: 'USD',
+    prepayment: '',
+    actual_check_in: null,
+    actual_check_in_time: '13:00:00',
+    actual_check_out: null,
+    actual_check_out_time: '11:00:00',
+  },
 });
 
 // Расширенные ошибки по каждому полю
@@ -297,6 +408,14 @@ watch(
       form.adult = v.adult === undefined || v.adult === null ? '' : String(v.adult);
       form.children = v.children === undefined || v.children === null ? '' : String(v.children);
       form.reservationDescription = v.reservationDescription ?? '';
+      const ri = v.reservation_info ?? {};
+      form.reservation_info.deposit          = ri.deposit          === undefined || ri.deposit          === null ? '' : String(ri.deposit);
+      form.reservation_info.deposit_currency = ri.deposit_currency || 'USD';
+      form.reservation_info.prepayment       = ri.prepayment       === undefined || ri.prepayment       === null ? '' : String(ri.prepayment);
+      form.reservation_info.actual_check_in  = ri.actual_check_in  ? new DayPilot.Date(ri.actual_check_in) : null;
+      form.reservation_info.actual_check_in_time  = ri.actual_check_in_time  ?? '13:00:00';
+      form.reservation_info.actual_check_out = ri.actual_check_out ? new DayPilot.Date(ri.actual_check_out) : null;
+      form.reservation_info.actual_check_out_time = ri.actual_check_out_time ?? '11:00:00';
       clearErrors();
       nextTick(() => firstInputRef.value?.focus());
     },
@@ -350,6 +469,10 @@ function onDateInput(e, field) {
   const value = e.target.value;
   form[field] = value ? new DayPilot.Date(value + 'T00:00:00') : null;
 }
+function onReservationDateInput(e, field) {
+  const value = e.target.value;
+  form.reservation_info[field] = value ? new DayPilot.Date(value + 'T00:00:00') : null;
+}
 
 // Очищает всё сообщения об ошибках
 function clearErrors() {
@@ -362,6 +485,15 @@ function digitsOrEmpty(field) {
   if (v === '') return;
   if (!/^\d+$/.test(v)) {
     form[field] = '';
+  }
+}
+
+// Тоже самое для вложенных объектов (например reservation_info)
+function digitsOrEmptyNested(obj, field) {
+  const v = form[obj][field];
+  if (v === '') return;
+  if (!/^\d+$/.test(String(v))) {
+    form[obj][field] = '';
   }
 }
 
@@ -448,6 +580,15 @@ async function submit() {
       adult: form.adult,
       children: form.children,
       reservationDescription: form.reservationDescription,
+      reservation_info: {
+        deposit:          form.reservation_info.deposit === '' ? 0 : Number(form.reservation_info.deposit),
+        deposit_currency: form.reservation_info.deposit_currency,
+        prepayment:       form.reservation_info.prepayment === '' ? 0 : Number(form.reservation_info.prepayment),
+        actual_check_in:  form.reservation_info.actual_check_in,
+        actual_check_in_time: form.reservation_info.actual_check_in_time,
+        actual_check_out: form.reservation_info.actual_check_out,
+        actual_check_out_time: form.reservation_info.actual_check_out_time,
+      },
     });
     close();
   } finally {
@@ -587,6 +728,16 @@ textarea {
   font-size: 11px;
   color: #6b7280;
   margin: 4px 0 0;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4f8cff;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 6px 0 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e4e7ed;
 }
 .err {
   color: #d9343a;
