@@ -17,45 +17,46 @@
           </span>
         </div>
 
+        <!-- Строки показываются, только если бэкенд отдаёт роли это поле (booking.field.*) -->
         <div class="info-section">
           <div class="info-section-title">{{ t('sectionAccommodation') }}</div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('room_number')">
             <span class="info-label">{{ t('apartment') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.roomNumber }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('check_in')">
             <span class="info-label">{{ t('checkIn') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.check_in }} {{ selectedGuest.tag?.check_in_time }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('check_out')">
             <span class="info-label">{{ t('checkOut') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.check_out }} {{ selectedGuest.tag?.check_out_time }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('days')">
             <span class="info-label">{{ t('nights') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.days }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('adult') || canSeeField('children')">
             <span class="info-label">{{ t('adultsChildren') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.adult }} / {{ selectedGuest.tag?.children }}</span>
           </div>
         </div>
 
-        <div class="info-section">
+        <div class="info-section" v-if="paymentFields.some(canSeeField)">
           <div class="info-section-title">{{ t('sectionPayment') }}</div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('price')">
             <span class="info-label">{{ t('price') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.price }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('cleaning_price')">
             <span class="info-label">{{ t('cleaning') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.cleaning_price }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('electricity_and_water_payment')">
             <span class="info-label">{{ t('electricity') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.electricity_and_water_payment }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" v-if="canSeeField('price_for_night')">
             <span class="info-label">{{ t('pricePerNight') }}</span>
             <span class="info-value">{{ selectedGuest.tag?.priceForOneNight }}</span>
           </div>
@@ -87,13 +88,13 @@
           </div>
         </div>
 
-        <div class="info-section" >
+        <div class="info-section" v-if="canSeeField('description')">
           <div class="info-section-title">{{ t('sectionDescription') }}</div>
           <p class="info-description">{{ selectedGuest.tag.reservationDescription }}</p>
         </div>
       </div>
 
-      <div class="statuses-section" v-if="statusTypes.length">
+      <div class="statuses-section" v-if="showStatuses && statusTypes.length">
         <div class="statuses-title">{{ t('statuses') }}</div>
         <div class="statuses-row">
           <button
@@ -102,7 +103,7 @@
               type="button"
               class="status-btn"
               :class="{ active: activeStatusTypeIds.has(st.id), loading: statusLoading }"
-              :disabled="statusLoading"
+              :disabled="statusLoading || !canWrite"
               @click="toggleGuestStatus(st.id)"
           >
             {{ st.name }}
@@ -131,6 +132,14 @@ import {ref, reactive, onMounted, watch, computed} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
 import { useSchedulerColumnSelection } from "../composables/useSchedulerColumnSelection";
+import { useCurrentUser, PERMISSIONS } from "../composables/useCurrentUser";
+
+// Права пользователя (роутер загружает их до открытия страницы)
+const { can, canSeeField } = useCurrentUser();
+const canWrite = can(PERMISSIONS.calendarWrite);     // создание/изменение/удаление броней и статусов
+const canReports = can(PERMISSIONS.reportsRead);
+const showStatuses = canSeeField('statuses');
+const paymentFields = ['price', 'cleaning_price', 'electricity_and_water_payment', 'price_for_night'];
 
 import "../styles/schedulerColumnSelection.css";
 
@@ -225,15 +234,21 @@ async function copyGuestInfo() {
   const tag = selectedGuest.value?.tag;
   if (!tag) return;
 
-  const text =
-      `name : ${tag.name ?? ''}\n` +
-      `phone : ${tag.phone ?? ''}\n` +
-      `roomNumber : ${tag.roomNumber ?? ''}\n` +
-      `check_in : ${tag.check_in ?? ''}\n` +
-      `check_out : ${tag.check_out ?? ''}\n` +
-      `price : ${tag.price ?? ''}\n` +
-      `adult : ${tag.adult ?? ''}\n` +
-      `children : ${tag.children ?? ''}`;
+  // [подпись, значение, поле брони] — копируем только поля, доступные роли
+  const lines = [
+    ['name', tag.name, 'guest_name'],
+    ['phone', tag.phone, 'guest_phone'],
+    ['roomNumber', tag.roomNumber, 'room_number'],
+    ['check_in', tag.check_in, 'check_in'],
+    ['check_out', tag.check_out, 'check_out'],
+    ['price', tag.price, 'price'],
+    ['adult', tag.adult, 'adult'],
+    ['children', tag.children, 'children'],
+  ];
+  const text = lines
+      .filter(([, , field]) => canSeeField(field))
+      .map(([label, value]) => `${label} : ${value ?? ''}`)
+      .join('\n');
 
   try {
     await navigator.clipboard.writeText(text);
@@ -430,13 +445,37 @@ const config = reactive({
   bubble: new DayPilot.Bubble({
     onLoad: args => {
       const t = args.source.data.tag;
-      args.html = t
-          ? `<b>${args.source.data.text}</b><br/>📞 ${t.phone}<br/>🏠 ${t.roomNumber}`
-          : "Информация отсутствует";
+      if (!t) {
+        args.html = "Информация отсутствует";
+        return;
+      }
+      // телефон и номер есть не у всех ролей
+      args.html = [
+        `<b>${args.source.data.text ?? ''}</b>`,
+        t.phone ? `📞 ${t.phone}` : '',
+        t.roomNumber ? `🏠 ${t.roomNumber}` : '',
+      ].filter(Boolean).join('<br/>');
     }
   }),
 
   onBeforeEventRender: (args) => {
+    // Цвет тела и полосы бронирования в зависимости от статусов брони:
+    // guest_checked_in -> зелёное тело карточки, paid_to_owner -> зелёная/красная полоса.
+    // Ролям без поля statuses статусы не приходят — карточку не красим.
+    if (showStatuses) {
+      const statuses = args.data.tag?.statuses || [];
+      const isCheckedIn = statuses.some(s => s.status_code === 'guest_checked_in');
+      const isPaidToOwner = statuses.some(s => s.status_code === 'paid_to_owner');
+
+      args.data.cssClass = [
+        isCheckedIn ? 'evt-checked-in' : '',
+        isPaidToOwner ? 'evt-paid-to-owner' : 'evt-not-paid-to-owner',
+      ].filter(Boolean).join(' ');
+    }
+
+    // Меню «Редактировать / Удалить» только для ролей с правом изменения
+    if (!canWrite) return;
+
     const areas = args.data.areas || [];
 
     const chevronSvg = `
@@ -476,18 +515,6 @@ const config = reactive({
       }
     });
 
-    // Цвет тела и полосы бронирования в зависимости от статусов брони:
-    // guest_checked_in -> зелёное тело карточки, paid_to_owner -> зелёная/красная полоса.
-    const statuses = args.data.tag?.statuses || [];
-    const isCheckedIn = statuses.some(s => s.status_code === 'guest_checked_in');
-    const isPaidToOwner = statuses.some(s => s.status_code === 'paid_to_owner');
-
-    const statusClasses = [
-      isCheckedIn ? 'evt-checked-in' : '',
-      isPaidToOwner ? 'evt-paid-to-owner' : 'evt-not-paid-to-owner',
-    ].filter(Boolean).join(' ');
-    args.data.cssClass = statusClasses;
-
     args.data.areas = areas;
   },
 
@@ -507,7 +534,9 @@ const config = reactive({
 
   crosshairType: "Full",
 
-  contextMenuResource: headerMenu,
+  // Меню отчётов по апартаменту и создание брони выделением — только при наличии прав
+  contextMenuResource: canReports ? headerMenu : undefined,
+  timeRangeSelectedHandling: canWrite ? "Enabled" : "Disabled",
 });
 
 
@@ -690,7 +719,7 @@ function noLessThenHalfDay(args) {
 }
 
 config.onTimeRangeSelected = async (args) => {
-  if (!noLessThenHalfDay(args)) {
+  if (!canWrite || !noLessThenHalfDay(args)) {
     args.control.clearSelection();
     return;
   }
@@ -1071,7 +1100,9 @@ onMounted(async () => {
 
   await loadResources();
   await loadEventsAll();
-  await loadStatusTypes();
+  if (showStatuses) {
+    await loadStatusTypes();
+  }
 
   // Делегируем клик по шеврону
   schedulerRef.value?.$el?.addEventListener("click", (e) => {

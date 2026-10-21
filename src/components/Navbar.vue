@@ -89,8 +89,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import api from "../api.js";
+import { useCurrentUser, resetCurrentUser, PERMISSIONS } from "../composables/useCurrentUser";
 import { useRouter, useRoute } from "vue-router";
 
 /* Simple i18n (можно расширить/вынести) */
@@ -125,10 +126,14 @@ const error = ref("");
 const mobileMenuOpen = ref(false);
 const panelRef = ref(null);
 
-const navItems = [
-  { to: "/today", label: t("today") },
+const { can } = useCurrentUser();
+
+// Пункты меню; permission — право, без которого пункт не показывается.
+const allNavItems = [
+  { to: "/today", label: t("today"), permission: PERMISSIONS.todayRead },
   { to: "/", label: t("calendar") }
 ];
+const navItems = computed(() => allNavItems.filter(item => !item.permission || can(item.permission)));
 
 /* Close menu on route change */
 watch(
@@ -180,9 +185,11 @@ async function onLogout() {
   loading.value = true;
   try {
     await api.post("/calendar/logout");
+    resetCurrentUser();
     router.push("/login");
   } catch (e) {
     error.value = e.response?.data || "Ошибка выхода";
+    resetCurrentUser();
     router.push("/login");
   } finally {
     loading.value = false;
