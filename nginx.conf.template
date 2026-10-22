@@ -1,0 +1,42 @@
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Прокси на backend. BACKEND_ORIGIN задаётся переменной окружения
+    # контейнера (см. Dockerfile / Railway service variables), например:
+    #   BACKEND_ORIGIN=https://myapp-backend.up.railway.app
+    # или внутренний Railway-домен вида http://backend.railway.internal:8080
+    #
+    # Используем resolver + переменную в proxy_pass, чтобы nginx резолвил
+    # хост в рантайме, а не один раз при старте — иначе контейнер падает,
+    # если backend ещё не поднялся или его адрес меняется (Railway/Docker).
+    # ${NGINX_LOCAL_RESOLVERS} подставляется официальным entrypoint-скриптом
+    # nginx (см. NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 в Dockerfile) на основе
+    # /etc/resolv.conf контейнера — работает и локально, и на Railway.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
+    location /api/ {
+        set $backend_origin "${BACKEND_ORIGIN}";
+        rewrite ^/api/(.*)$ /$1 break;
+
+        proxy_pass $backend_origin;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Куки от backend должны остаться валидными для пути "/",
+        # т.к. с точки зрения браузера это тот же origin, что и сам фронт.
+        proxy_cookie_path / /;
+    }
+
+    # SPA fallback: все остальные пути отдаём index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

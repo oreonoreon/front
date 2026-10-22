@@ -405,6 +405,14 @@ const config = reactive({
   allowEventOverlap: false,
   eventBorderRadius: "15px",
   rowMinHeight: 50,
+  // Description: обрезаем до 3 строк, полный текст — в подсказке
+  onBeforeRowHeaderRender: (args) => {
+    const col = args.row.columns?.[1];
+    if (!col) return;
+    const desc = String(args.row.data.description ?? '');
+    const escaped = desc.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    col.html = `<div class="dp-desc-cell" title="${escaped}">${escaped}</div>`;
+  },
   useEventBoxes: "Never",
   snapToGrid: false,
   eventMoveHandling: "Disabled",
@@ -1149,7 +1157,13 @@ onMounted(async () => {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  font-size: 12px;
   line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
 }
 
 .scheduler-container {
