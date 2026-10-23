@@ -82,6 +82,7 @@
 import { ref, computed } from "vue";
 import api from "../api";
 import { useRouter } from "vue-router";
+import { resetCurrentUser } from "../composables/useCurrentUser";
 
 // Simple dictionary (можно вынести в отдельный модуль)
 const translations = {
@@ -142,6 +143,7 @@ async function login() {
       username: username.value,
       password: password.value,
     });
+    resetCurrentUser(); // права нового пользователя загрузит роутер
     router.push("/");
   } catch (e) {
     // попытка извлечь сообщение с сервера; если нет — локализованный generic
