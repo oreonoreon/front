@@ -420,12 +420,18 @@ const config = reactive({
   allowEventOverlap: false,
   eventBorderRadius: "15px",
   rowMinHeight: 50,
-  // Description: обрезаем до 3 строк, полный текст — в подсказке
   onBeforeRowHeaderRender: (args) => {
+    const escape = (s) => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+    // Неактивные апартаменты (видны только ролям с правом apartments.inactive) — с пометкой
+    if (args.row.data.isActive === false && args.row.columns?.[0]) {
+      args.row.columns[0].html = `<span class="dp-inactive-room" title="Неактивный апартамент">${escape(args.row.data.name)}<small>неактивен</small></span>`;
+    }
+
+    // Description: обрезаем до 3 строк, полный текст — в подсказке
     const col = args.row.columns?.[1];
     if (!col) return;
-    const desc = String(args.row.data.description ?? '');
-    const escaped = desc.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const escaped = escape(args.row.data.description);
     col.html = `<div class="dp-desc-cell" title="${escaped}">${escaped}</div>`;
   },
   useEventBoxes: "Never",
@@ -970,6 +976,7 @@ const loadResources = async () => {
       name: apt.room_number,
       id: apt.room_number,
       description: apt.description || "",
+      isActive: apt.is_active !== false,
     }));
     // Апартаменты с номером, начинающимся на "Serenity", должны идти последними
     const isSerenity = (r) => String(r.name ?? '').startsWith('Serenity');
@@ -1195,6 +1202,17 @@ onMounted(async () => {
   -webkit-line-clamp: 3;
   line-clamp: 3;
   overflow: hidden;
+}
+
+/* Неактивный апартамент в колонке номера */
+:deep(.dp-inactive-room) {
+  display: flex;
+  flex-direction: column;
+  color: #98a2b3;
+}
+:deep(.dp-inactive-room small) {
+  font-size: 10px;
+  color: #b42318;
 }
 
 .scheduler-container {

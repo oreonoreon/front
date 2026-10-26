@@ -1,0 +1,464 @@
+/* Админка: стили в духе вкладки «Сегодня» (TodayView) */
+
+.adm-page {
+  padding: 20px;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: #f0f2f5;
+  color: #1d2939;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* Модальные окна телепортируются в body — им тоже нужен шрифт */
+.adm-overlay {
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: #1d2939;
+}
+
+.adm-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.adm-tab {
+  padding: 8px 18px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.adm-tab:hover {
+  border-color: #98a2b3;
+}
+
+.adm-tab.active {
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.adm-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  padding: 16px;
+}
+
+.adm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.adm-toolbar .adm-spacer {
+  flex: 1;
+}
+
+.adm-search {
+  min-width: 200px;
+  flex: 1;
+  max-width: 320px;
+}
+
+.adm-hint {
+  font-size: 13px;
+  color: #667085;
+  margin: 0 0 12px;
+}
+
+/* ─── Список строк (таблица на широком экране, карточки на узком) ─── */
+
+.adm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #f2f4f7;
+}
+
+.adm-row:last-child {
+  border-bottom: none;
+}
+
+.adm-row.adm-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adm-row.inactive {
+  opacity: 0.6;
+}
+
+.adm-cell-main {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.adm-cell-muted {
+  color: #667085;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.adm-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.adm-empty {
+  padding: 24px;
+  text-align: center;
+  color: #98a2b3;
+}
+
+/* ─── Метки ─── */
+
+.adm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.adm-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef4ff;
+  color: #3538cd;
+  white-space: nowrap;
+}
+
+.adm-chip.user {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.adm-chip.muted {
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.adm-chip.warn {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+/* ─── Кнопки ─── */
+
+.adm-btn {
+  padding: 7px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #344054;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.adm-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #98a2b3;
+}
+
+.adm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adm-btn.primary {
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.adm-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.adm-btn.danger {
+  color: #b42318;
+  border-color: #fecdca;
+}
+
+.adm-btn.danger:hover:not(:disabled) {
+  background: #fef3f2;
+}
+
+/* ─── Переключатель активности ─── */
+
+.adm-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.adm-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.adm-switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d0d5dd;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.adm-switch span::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.adm-switch input:checked + span {
+  background: #12b76a;
+}
+
+.adm-switch input:checked + span::before {
+  transform: translateX(16px);
+}
+
+.adm-switch input:disabled + span {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+/* ─── Модальные окна и формы (как в TodayView) ─── */
+
+.adm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.adm-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-modal.wide {
+  max-width: 720px;
+}
+
+.adm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #f2f4f7;
+}
+
+.adm-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.adm-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #98a2b3;
+  line-height: 1;
+  padding: 0;
+}
+
+.adm-modal-close:hover {
+  color: #344054;
+}
+
+.adm-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.adm-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 0 20px 20px;
+}
+
+.adm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adm-field > label,
+.adm-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.adm-field small {
+  font-size: 12px;
+  color: #667085;
+}
+
+.adm-input {
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1d2939;
+  outline: none;
+  background: #fff;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.adm-input:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
+}
+
+.adm-input:disabled {
+  background: #f9fafb;
+  color: #667085;
+}
+
+.adm-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: #344054;
+  cursor: pointer;
+}
+
+.adm-checkbox input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #4f8cff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.adm-checkbox .adm-cell-muted {
+  display: block;
+}
+
+.adm-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 16px;
+}
+
+.adm-check-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #f2f4f7;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.adm-group-title {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adm-error {
+  font-size: 13px;
+  color: #b42318;
+  background: #fef3f2;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.adm-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1d2939;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  z-index: 1100;
+}
+
+@media (max-width: 720px) {
+  .adm-page {
+    padding: 12px;
+  }
+
+  .adm-row.adm-head {
+    display: none;
+  }
+
+  /* На телефоне строка списка становится карточкой: все ячейки друг под другом */
+  .adm-row {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+    padding: 12px 4px;
+  }
+
+  .adm-actions {
+    justify-content: flex-start;
+  }
+
+  .adm-search {
+    max-width: none;
+  }
+}
