@@ -15,6 +15,9 @@
       <template v-if="allSeeingRoles.length">
         Роли {{ allSeeingRoles.join(', ') }} видят все апартаменты без выдачи доступа.
       </template>
+      <template v-if="assignedOnlyRoles.length">
+        Роли {{ assignedOnlyRoles.join(', ') }} получают апартаменты только лично — отмечайте конкретных пользователей.
+      </template>
     </p>
 
     <div v-if="loadError" class="adm-error">{{ loadError }}</div>
@@ -74,11 +77,13 @@
             <div class="adm-field">
               <span class="adm-field-label">Доступ ролям</span>
               <div class="adm-check-grid">
-                <label v-for="r in roles" :key="r.name" class="adm-checkbox">
-                  <input v-model="form.roles" type="checkbox" :value="r.name" />
+                <label v-for="r in roles" :key="r.name" class="adm-checkbox"
+                       :title="assignedOnly(r) ? 'Этой роли апартаменты выдаются только лично — ниже, в списке пользователей' : ''">
+                  <input v-model="form.roles" type="checkbox" :value="r.name" :disabled="assignedOnly(r)" />
                   <span>
                     {{ r.name }}
                     <span v-if="seesAll(r)" class="adm-cell-muted">видит все апартаменты</span>
+                    <span v-else-if="assignedOnly(r)" class="adm-cell-muted">только лично, отметьте пользователя ниже</span>
                   </span>
                 </label>
               </div>
@@ -142,6 +147,15 @@ function seesAll(role) {
 }
 
 const allSeeingRoles = computed(() => roles.value.filter(seesAll).map(r => r.name));
+
+// Роли с apartments.assigned_only (например, владельцы) получают апартаменты только лично:
+// выдать такой роли апартамент целиком нельзя, бэкенд такое отклонит.
+function assignedOnly(role) {
+  return role.permissions.includes("apartments.assigned_only");
+}
+
+const assignedOnlyRoles = computed(() => roles.value.filter(assignedOnly).map(r => r.name));
+const isAssignedOnlyRole = (name) => assignedOnlyRoles.value.includes(name);
 
 async function load() {
   loading.value = true;
@@ -208,7 +222,8 @@ function openEdit(a) {
   form.value = {
     oid: a.oid, original: a, room_number: a.room_number, description: a.description,
     airbnbCalendar: a.airbnbCalendar, is_active: a.is_active,
-    roles: [...a.roles], user_ids: a.users.map(u => u.id), error: "", saving: false,
+    // старая выдача ролям «только лично» не действует — при сохранении она уберётся
+    roles: a.roles.filter(r => !isAssignedOnlyRole(r)), user_ids: a.users.map(u => u.id), error: "", saving: false,
   };
 }
 
