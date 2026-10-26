@@ -198,7 +198,10 @@
   border-color: transparent;
 }
 
+/* Свой hover: общий .adm-btn:hover весит больше .adm-btn.primary и перекрасил бы кнопку в белый */
 .adm-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(90deg, #4f8cff 0%, #6157ff 100%);
+  border-color: transparent;
   filter: brightness(1.08);
 }
 
