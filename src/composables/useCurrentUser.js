@@ -10,7 +10,13 @@ export const PERMISSIONS = {
     cleaningManage: "cleaning.manage",
     reportsRead: "reports.read",
     bookingFieldAll: "booking.field.all",
+    usersManage: "users.manage",
+    apartmentsManage: "apartments.manage",
+    rolesManage: "roles.manage",
 };
+
+// Права, дающие доступ к админке (хотя бы одно из них)
+export const ADMIN_PERMISSIONS = [PERMISSIONS.usersManage, PERMISSIONS.apartmentsManage, PERMISSIONS.rolesManage];
 
 // Текущий пользователь из GET /calendar/me. Загружается один раз за сессию,
 // сбрасывается при входе и выходе.
@@ -38,11 +44,15 @@ function can(permission) {
     return !!user.value?.permissions.has(permission);
 }
 
+function canAny(permissions) {
+    return permissions.some(can);
+}
+
 // canSeeField — отдаёт ли бэкенд роли поле брони (booking.field.<field>).
 function canSeeField(field) {
     return can(PERMISSIONS.bookingFieldAll) || can(`booking.field.${field}`);
 }
 
 export function useCurrentUser() {
-    return { user, can, canSeeField };
+    return { user, can, canAny, canSeeField };
 }

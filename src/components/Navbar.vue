@@ -91,7 +91,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import api from "../api.js";
-import { useCurrentUser, resetCurrentUser, PERMISSIONS } from "../composables/useCurrentUser";
+import { useCurrentUser, resetCurrentUser, PERMISSIONS, ADMIN_PERMISSIONS } from "../composables/useCurrentUser";
 import { useRouter, useRoute } from "vue-router";
 
 /* Simple i18n (можно расширить/вынести) */
@@ -99,6 +99,7 @@ const translations = {
   ru: {
     today: "Сегодня",
     calendar: "Календарь",
+    admin: "Админка",
     logout: "Выйти",
     menu: "Меню",
     menuToggleAria: "Открыть или закрыть меню",
@@ -107,6 +108,7 @@ const translations = {
   en: {
     today: "Today",
     calendar: "Calendar",
+    admin: "Admin",
     logout: "Logout",
     menu: "Menu",
     menuToggleAria: "Toggle menu",
@@ -126,14 +128,16 @@ const error = ref("");
 const mobileMenuOpen = ref(false);
 const panelRef = ref(null);
 
-const { can } = useCurrentUser();
+const { can, canAny } = useCurrentUser();
 
-// Пункты меню; permission — право, без которого пункт не показывается.
+// Пункты меню; permission — право (или список, достаточно одного), без которого пункт не показывается.
 const allNavItems = [
   { to: "/today", label: t("today"), permission: PERMISSIONS.todayRead },
-  { to: "/", label: t("calendar") }
+  { to: "/", label: t("calendar") },
+  { to: "/admin", label: t("admin"), permission: ADMIN_PERMISSIONS }
 ];
-const navItems = computed(() => allNavItems.filter(item => !item.permission || can(item.permission)));
+const navItems = computed(() => allNavItems.filter(item =>
+    !item.permission || (Array.isArray(item.permission) ? canAny(item.permission) : can(item.permission))));
 
 /* Close menu on route change */
 watch(
