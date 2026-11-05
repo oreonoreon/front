@@ -441,7 +441,7 @@ const config = reactive({
   // Строки кондо и групп сплошной полосой, в цвет заголовка (.dp-row-condo, .dp-row-group)
   onBeforeCellRender: (args) => {
     if (args.cell.isParent) {
-      args.cell.properties.backColor = String(args.cell.resource).startsWith('condo:') ? '#dfe5f1' : '#eef1f7';
+      args.cell.properties.backColor = String(args.cell.resource).startsWith('condo:') ? '#d2dbec' : '#e2e7f0';
     }
   },
   onBeforeRowHeaderRender: (args) => {
@@ -1220,13 +1220,13 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 13px;
   color: #1d2939;
-  background: #dfe5f1;
+  background: #d2dbec;
 }
 :deep(.dp-row-group) {
   font-weight: 600;
   font-size: 12px;
   color: #344054;
-  background: #eef1f7;
+  background: #e2e7f0;
 }
 /* Длинное название переносится по ширине колонки (высоту строки считает layoutRowHeaders) */
 :deep(.dp-row-condo .scheduler_default_rowheader_inner_text),

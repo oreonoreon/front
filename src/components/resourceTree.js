@@ -24,7 +24,7 @@ function parentRow(id, name, cssClass) {
 }
 
 // Апартаменты без кондо идут первыми, в кондо сначала апартаменты без группы.
-// Порядок апартаментов внутри группы — как в apartments.
+// Кондо — в порядке apartments (бэкенд отдаёт их по порядку из админки), апартаменты внутри — тоже.
 export function buildResourceTree(apartments) {
   const loose = [];
   const condos = new Map();
@@ -57,7 +57,7 @@ export function buildResourceTree(apartments) {
     condo.row.children = [...condo.loose, ...condo.groups.sort(byName)];
     return condo.row;
   });
-  return [...loose, ...condoRows.sort(byName)];
+  return [...loose, ...condoRows];
 }
 
 // Отступ текста от начала уровня в заголовке строки: у кондо и групп DayPilot оставляет место

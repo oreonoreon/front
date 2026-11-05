@@ -6,6 +6,7 @@
     </div>
     <p class="adm-hint">
       В календаре апартаменты идут деревом: кондо, внутри него группы, в группах апартаменты.
+      Кондо идут в календаре в том же порядке, что здесь — меняйте его стрелками.
       Отнести апартаменты к кондо и группе можно на вкладке «Апартаменты».
     </p>
 
@@ -16,11 +17,15 @@
       <div class="adm-row adm-head" :style="gridStyle">
         <span>Название</span><span>Апартаментов</span><span></span>
       </div>
-      <template v-for="c in condos" :key="c.id">
+      <template v-for="(c, i) in condos" :key="c.id">
         <div class="adm-row" :style="gridStyle">
           <span class="adm-cell-main">{{ c.name }}</span>
           <span class="adm-cell-muted">{{ c.apartment_count }}</span>
           <span class="adm-actions">
+            <button type="button" class="adm-btn" title="Выше в календаре" aria-label="Выше в календаре"
+                    :disabled="i === 0 || reordering" @click="move(i, -1)">↑</button>
+            <button type="button" class="adm-btn" title="Ниже в календаре" aria-label="Ниже в календаре"
+                    :disabled="i === condos.length - 1 || reordering" @click="move(i, 1)">↓</button>
             <button type="button" class="adm-btn" @click="openCreateGroup(c)">+ Группа</button>
             <button type="button" class="adm-btn" @click="openRename('condo', c)">Изменить</button>
             <button type="button" class="adm-btn danger" :disabled="c.apartment_count > 0"
@@ -96,7 +101,7 @@ import { apiError } from "./apiError";
 
 const emit = defineEmits(["toast"]);
 
-const gridStyle = { gridTemplateColumns: "2fr 1fr 280px" };
+const gridStyle = { gridTemplateColumns: "2fr 1fr 370px" };
 
 const condos = ref([]);
 const loading = ref(false);
@@ -111,6 +116,23 @@ async function load() {
     loadError.value = apiError(err);
   } finally {
     loading.value = false;
+  }
+}
+
+// ─── Порядок кондо в календаре ───
+const reordering = ref(false);
+
+async function move(index, step) {
+  const order = condos.value.map(c => c.id);
+  [order[index], order[index + step]] = [order[index + step], order[index]];
+  reordering.value = true;
+  try {
+    await api.put("/calendar/admin/condos/order", { condo_ids: order });
+    await load();
+  } catch (err) {
+    emit("toast", apiError(err));
+  } finally {
+    reordering.value = false;
   }
 }
 
