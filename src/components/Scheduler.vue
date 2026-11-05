@@ -128,6 +128,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 import { DayPilot, DayPilotScheduler } from "@oreonoreon/calendar";
+import { buildResourceTree, layoutRowHeaders, roomNumbers } from "./resourceTree";
 import {ref, reactive, onMounted, watch, computed} from "vue";
 import api from "../api.js";
 import BookingFormOverlay from "./BookingFormOverlay.vue";
@@ -295,6 +296,12 @@ const chevronSvg = `
 
 
 
+const TREE_INDENT = 10;
+
+// Ширина колонки Room number — по самому длинному номеру апартамента (layoutRowHeaders),
+// до загрузки апартаментов — автоподбор DayPilot
+let roomColumnWidth = null;
+
 // Строим набор колонок (1 или 2) без инлайновых transform у шеврона
 function buildRowHeaderColumns(show) {
 
@@ -302,6 +309,8 @@ function buildRowHeaderColumns(show) {
     {
       text: "Room number",
       display: "name",
+      width: roomColumnWidth ?? undefined,
+      maxAutoWidth: roomColumnWidth ?? undefined,
       html: `<span style="display:flex;align-items:center;gap:6px;">
         <span>Room number</span>${chevronSvg}
       </span>`,
@@ -370,6 +379,10 @@ const eventMenu = new DayPilot.Menu({
 });
 
 const headerMenu = new DayPilot.Menu({
+  // Отчёты строятся по апартаменту, у строк кондо и групп меню нет
+  onShow: (args) => {
+    if (args.source.data.isParent) args.preventDefault();
+  },
   items: [
     {
       text: "Report",
@@ -420,7 +433,23 @@ const config = reactive({
   allowEventOverlap: false,
   eventBorderRadius: "15px",
   rowMinHeight: 50,
+  // Кондо и группы — родительские строки дерева: бронировать в них нельзя
+  treeEnabled: true,
+  treePreventParentUsage: true,
+  treeIndent: TREE_INDENT,
+  rowHeaderColumnsMergeParents: true,
+  // Строки кондо и групп сплошной полосой, в цвет заголовка (.dp-row-condo, .dp-row-group)
+  onBeforeCellRender: (args) => {
+    if (args.cell.isParent) {
+      args.cell.properties.backColor = String(args.cell.resource).startsWith('condo:') ? '#dfe5f1' : '#eef1f7';
+    }
+  },
   onBeforeRowHeaderRender: (args) => {
+    if (args.row.data.isParent) {
+      args.row.toolTip = args.row.data.name;
+      return;
+    }
+
     const escape = (s) => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     // Неактивные апартаменты (видны только ролям с правом apartments.inactive) — с пометкой
@@ -527,16 +556,7 @@ const config = reactive({
   timeHeaderClickHandling: "JavaScript",
 
   // Колонки заголовков строк (инициализируются функцией ниже)
-  rowHeaderColumns: [
-    {
-      text: "Room number",
-      display: "name",
-      // width: 120,
-      html: `<span style="display:flex;align-items:center;gap:6px;">
-        <span>Room number</span>${chevronSvg}
-      </span>`,
-    }
-  ],
+  rowHeaderColumns: buildRowHeaderColumns(false),
 
   crosshairType: "Full",
 
@@ -972,18 +992,13 @@ const updateBooking = async (id,booking) => {
 const loadResources = async () => {
   try {
     const { data } = await api.get('/calendar/r');
-    const mapped = data.apartments.map(apt => ({
-      name: apt.room_number,
-      id: apt.room_number,
-      description: apt.description || "",
-      isActive: apt.is_active !== false,
-    }));
-    // Апартаменты с номером, начинающимся на "Serenity", должны идти последними
-    const isSerenity = (r) => String(r.name ?? '').startsWith('Serenity');
-    config.resources = [
-      ...mapped.filter(r => !isSerenity(r)),
-      ...mapped.filter(isSerenity),
-    ];
+    const resources = buildResourceTree(data.apartments);
+    const main = schedulerRef.value?.$el; // .scheduler_default_main
+    if (main) {
+      roomColumnWidth = layoutRowHeaders(resources, main, TREE_INDENT);
+      config.rowHeaderColumns = buildRowHeaderColumns(showDescription.value);
+    }
+    config.resources = resources;
   } catch (error) {
     if (error.response && error.response.status === 401) {
       router.push("/login");
@@ -1002,8 +1017,8 @@ const loadResources = async () => {
 
 const loadEvents = async () => {
   let events = [];
-  for (const res of config.resources) {
-    const { data } = await api.post('/calendar/r', { room_number: res.id });
+  for (const room of roomNumbers(config.resources)) {
+    const { data } = await api.post('/calendar/r', { room_number: room });
     const bookings = data.bookings || data;
     bookings.forEach(b => {
       const checkIn = addElevenHoursDP(b.check_in);
@@ -1041,12 +1056,7 @@ const loadEvents = async () => {
 
 const loadEventsAll = async () => {
   let events = [];
-  let rooms = [];
-  for (const res of config.resources) {
-    rooms.push(
-        res.id,
-    )
-  }
+  const rooms = roomNumbers(config.resources);
 
   let data;
   try {
@@ -1205,6 +1215,31 @@ onMounted(async () => {
 }
 
 /* Неактивный апартамент в колонке номера */
+/* Строки кондо и групп в дереве апартаментов */
+:deep(.dp-row-condo) {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1d2939;
+  background: #dfe5f1;
+}
+:deep(.dp-row-group) {
+  font-weight: 600;
+  font-size: 12px;
+  color: #344054;
+  background: #eef1f7;
+}
+/* Длинное название переносится по ширине колонки (высоту строки считает layoutRowHeaders) */
+:deep(.dp-row-condo .scheduler_default_rowheader_inner_text),
+:deep(.dp-row-group .scheduler_default_rowheader_inner_text) {
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+/* У апартаментов нет значка дерева: номер начинается там, где название родительской строки
+   (отступ учитывает layoutRowHeaders) */
+:deep(.scheduler_default_tree_image_no_children + .scheduler_default_rowheader_inner_text) {
+  margin-left: 5px !important;
+}
+
 :deep(.dp-inactive-room) {
   display: flex;
   flex-direction: column;

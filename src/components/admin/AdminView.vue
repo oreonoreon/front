@@ -15,6 +15,7 @@
 
     <AdminUsers v-if="activeTab === 'users'" @toast="showToast" />
     <AdminApartments v-else-if="activeTab === 'apartments'" @toast="showToast" />
+    <AdminCondos v-else-if="activeTab === 'condos'" @toast="showToast" />
     <AdminRoles v-else-if="activeTab === 'roles'" @toast="showToast" />
 
     <transition name="adm-fade">
@@ -29,6 +30,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser, PERMISSIONS } from "../../composables/useCurrentUser";
 import AdminUsers from "./AdminUsers.vue";
 import AdminApartments from "./AdminApartments.vue";
+import AdminCondos from "./AdminCondos.vue";
 import AdminRoles from "./AdminRoles.vue";
 import "../../styles/admin.css";
 
@@ -40,6 +42,7 @@ const { can } = useCurrentUser();
 const tabs = [
   { id: "users", label: "Пользователи", permission: PERMISSIONS.usersManage },
   { id: "apartments", label: "Апартаменты", permission: PERMISSIONS.apartmentsManage },
+  { id: "condos", label: "Кондо и группы", permission: PERMISSIONS.apartmentsManage },
   { id: "roles", label: "Роли и права", permission: PERMISSIONS.rolesManage },
 ].filter(tab => can(tab.permission));
 

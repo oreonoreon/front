@@ -108,6 +108,28 @@
   opacity: 0.6;
 }
 
+/* Группа под своим кондо */
+.adm-row.adm-subrow {
+  padding-left: 24px;
+}
+
+/* Панель действий над выбранными апартаментами */
+.adm-bulk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eef4ff;
+}
+
+.adm-bulk .adm-input,
+.adm-toolbar select.adm-input {
+  width: auto;
+}
+
 .adm-cell-main {
   font-weight: 600;
   overflow-wrap: anywhere;
